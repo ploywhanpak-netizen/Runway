@@ -111,9 +111,22 @@ h3.sub{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:upperc
 .paperTable .name{min-width:150px}
 .paperTable .num{text-align:right;white-space:nowrap}
 .paperNote{color:var(--faint);font-size:12.5px;margin-top:12px}
+.moneyFlow{margin:16px 0}
+.moneyFlow .ttl{margin-bottom:16px}
+.flowGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.flowBox{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:13px 14px}
+.flowBox .k{font-size:11px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase}
+.flowBox .v{font-size:22px;font-weight:350;margin-top:4px}
+.flowTrack{height:9px;background:var(--line-2);border-radius:99px;overflow:hidden;margin-top:12px}
+.flowTrack i{display:block;height:100%;border-radius:99px}
+.prettyPaper{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.prettyPaper .paperSide{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.prettyPaper .paperSide:first-child{border-right:1px solid var(--line)}
 @media(max-width:880px){
   .paperGrid{grid-template-columns:1fr}
   .paperSide:first-child{border-right:none;border-bottom:1px solid var(--line)}
+  .flowGrid,.prettyPaper{grid-template-columns:1fr}
+  .prettyPaper .paperSide:first-child{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 }
 
 /* ---------- lists ---------- */
@@ -670,6 +683,54 @@ function vPaperMonth(){
     '</tbody><tfoot><tr><td>รวมรายจ่าย</td><td class="num">'+fmt(expenseTotal,2)+'</td><td class="num pos">'+fmt(paidDisplay,2)+'</td><td class="num '+(remaining?"neg":"pos")+'">'+fmt(remaining,2)+'</td><td></td></tr></tfoot></table>'+
     '<p class="paperNote">ฝั่งนี้ตั้งใจให้เป็นตาราง เพื่อกรอกเช็กยอดเหมือนกระดาษรายเดือน</p></section>'+
     '</div></div>';
+  return h;
+}
+
+function vPaperMonth(){
+  const income=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&isIncome(x)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const actualExpense=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&!isIncome(x));
+  const dues=monthDueItems(S.month);
+  const incTotal=income.reduce((s,x)=>s+N(x.amount),0);
+  const dueTotal=dues.reduce((s,x)=>s+N(x.amount),0);
+  const paidTotal=dues.reduce((s,x)=>s+Math.min(N(x.amount),N(x.paidAmount)),0);
+  const actualTotal=actualExpense.reduce((s,x)=>s+N(x.amount),0);
+  const expenseTotal=Math.max(dueTotal,actualTotal);
+  const paidDisplay=dues.length?paidTotal:actualTotal;
+  const remaining=Math.max(0,expenseTotal-paidDisplay);
+  const balance=incTotal-expenseTotal;
+  const maxFlow=Math.max(incTotal,expenseTotal,remaining,1);
+  const incomeRows=income.map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายรับ")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td>"+
+    "<td class='num pos'>"+fmt(x.amount,2)+"</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join("");
+  const dueRows=dues.map(x=>{const amount=N(x.amount),paid=Math.min(amount,N(x.paidAmount)),left=Math.max(0,amount-paid);
+    return "<tr><td class='name' style='"+groupTint(x.cat)+"'><b>"+esc(x.item)+"</b><div class='dim'>"+esc(x.cat||"")+"</div></td>"+
+    "<td class='num'>"+fmt(amount,2)+"</td><td class='num pos'>"+fmt(paid,2)+"</td><td class='num "+(left?"neg":"pos")+"'>"+fmt(left,2)+"</td><td class='r'>"+(x.edit?editBtn(x.edit,x.id):"")+"</td></tr>";
+  }).join("");
+  const actualRows=!dues.length&&actualExpense.length?actualExpense.sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายจ่าย")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td><td class='num'>"+fmt(x.amount,2)+"</td><td class='num pos'>"+fmt(x.amount,2)+"</td><td class='num pos'>0.00</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join(""):"";
+  let h=head("รายรับ / รายจ่าย",'<input type="month" data-month value="'+S.month+'" style="width:auto;padding:4px 8px;font-size:13px;margin-top:4px">',addBtn("tx","เพิ่มรายรับ",{kind:"Income",date:iso(new Date())})+' <button class="btn ghost" data-add="dues" data-preset="'+esc(JSON.stringify({month:S.month}))+'">เพิ่มรายจ่าย</button>');
+  h+='<div class="stats">'+
+    stat("รายรับรวม",money(incTotal),income.length+" รายการ","pos")+
+    stat("รายจ่ายรวม",money(expenseTotal),(dues.length||actualExpense.length)+" รายการ","neg")+
+    stat("จ่ายแล้ว",money(paidDisplay),paidDisplay?Math.round(paidDisplay/Math.max(expenseTotal,1)*100)+"% ของรายจ่าย":"ยังไม่ได้บันทึก","pos")+
+    stat("คงเหลือ",(balance<0?"−":"")+money(Math.abs(balance)),balance<0?"รายจ่ายเกินรายรับ":"หลังหักรายจ่าย",balance<0?"neg":"pos")+
+    "</div>";
+  h+='<div class="card moneyFlow"><div class="ttl"><h2>สรุปเดือนนี้</h2><div class="grow"></div><span class="pill">'+mlabel(S.month)+'</span></div>'+
+    '<div class="flowGrid">'+
+      '<div class="flowBox"><div class="k">รายรับ</div><div class="v pos">'+money(incTotal)+'</div><div class="flowTrack"><i style="width:'+(incTotal/maxFlow*100)+'%;background:var(--pos)"></i></div></div>'+
+      '<div class="flowBox"><div class="k">รายจ่าย</div><div class="v neg">'+money(expenseTotal)+'</div><div class="flowTrack"><i style="width:'+(expenseTotal/maxFlow*100)+'%;background:var(--neg)"></i></div></div>'+
+      '<div class="flowBox"><div class="k">ค้างจ่าย</div><div class="v '+(remaining?"neg":"pos")+'">'+money(remaining)+'</div><div class="flowTrack"><i style="width:'+(remaining/maxFlow*100)+'%;background:'+(remaining?"var(--warn)":"var(--pos)")+'"></i></div></div>'+
+    '</div></div>';
+  h+='<div class="prettyPaper">'+
+    '<section class="paperSide"><div class="paperHead"><h2>รายรับ</h2><div class="grow"></div><span class="pill pos">'+money(incTotal)+'</span></div>'+
+    '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th></th></tr></thead><tbody>'+
+    (incomeRows||'<tr><td colspan="3" class="empty">ยังไม่มีรายรับเดือนนี้</td></tr>')+
+    '</tbody><tfoot><tr><td>รวมรายรับ</td><td class="num pos">'+fmt(incTotal,2)+'</td><td></td></tr></tfoot></table></section>'+
+    '<section class="paperSide"><div class="paperHead"><h2>รายจ่าย</h2><div class="grow"></div><span class="pill neg">'+money(expenseTotal)+'</span></div>'+
+    '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th class="num">จ่ายแล้ว</th><th class="num">ค้างจ่าย</th><th></th></tr></thead><tbody>'+
+    (dueRows||actualRows||'<tr><td colspan="5" class="empty">ยังไม่มีรายจ่ายเดือนนี้</td></tr>')+
+    '</tbody><tfoot><tr><td>รวมรายจ่าย</td><td class="num">'+fmt(expenseTotal,2)+'</td><td class="num pos">'+fmt(paidDisplay,2)+'</td><td class="num '+(remaining?"neg":"pos")+'">'+fmt(remaining,2)+'</td><td></td></tr></tfoot></table></section>'+
+    '</div>';
   return h;
 }
 
