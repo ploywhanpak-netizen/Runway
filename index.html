@@ -130,6 +130,9 @@ h3.sub{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:upperc
 .sheetTable .rowBtn{width:40px;text-align:center}
 .sheetTable .rowBtn button{border:none;background:transparent;color:var(--faint);cursor:pointer;padding:6px}
 .sheetTable .rowBtn button:hover{color:var(--neg)}
+.schedInput{width:100%;min-width:86px;border:1px solid transparent;background:transparent;color:inherit;text-align:right;border-radius:7px;padding:6px 7px;font:inherit;font-variant-numeric:tabular-nums}
+.schedInput[type=date]{min-width:132px;text-align:left}
+.schedInput:focus{outline:none;border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:var(--raised)}
 @media(max-width:880px){
   .paperTop{grid-template-columns:1fr 1fr}
   .paperGrid{grid-template-columns:1fr}
@@ -378,6 +381,7 @@ debts:{one:"หนี้",fields:[
   {k:"rate",l:"ดอกเบี้ย (% ต่อปี)",t:"number"},
   {k:"method",l:"วิธีคิดดอกเบี้ย",t:"select",o:["Reducing balance","Flat rate"],when:d=>!isCard(d.type)},
   {k:"term",l:"จำนวนงวด",t:"number",when:d=>!isCard(d.type)},
+  {k:"paidCount",l:"ผ่อนไปแล้วกี่งวด",t:"number",when:d=>!isCard(d.type)},
   {k:"start",l:"วันเริ่มสัญญา",t:"date",when:d=>!isCard(d.type)},
   {k:"payment",l:"งวดละ",t:"number"},
   {k:"minPct",l:"ขั้นต่ำที่ต้องจ่าย (%)",t:"number",when:d=>isCard(d.type),ph:"เช่น 8"},
@@ -487,7 +491,16 @@ function scheduleOf(d){
     bal=Math.max(0,bal-prin);
     rows.push({k,date:dt,pay:prin+int,int,prin,bal});
   }
-  return rows;
+  return rows.sort((a,b)=>a.date-b.date||a.k-b.k);
+}
+function scheduleRows(d){
+  const rows=scheduleOf(d),ov=d.scheduleOverrides||{};
+  rows.forEach(r=>{
+    const x=ov[r.k]||{};
+    if(x.date)r.date=pd(x.date)||r.date;
+    ["pay","int","prin","bal"].forEach(k=>{if(x[k]!==undefined&&x[k]!=="")r[k]=N(x[k])});
+  });
+  return rows.sort((a,b)=>a.date-b.date||a.k-b.k);
 }
 function remainMonths(d){
   const bal=N(d.balance),pay=N(d.payment),r=N(d.rate);
@@ -496,9 +509,10 @@ function remainMonths(d){
   return Math.ceil(bal/pay);
 }
 function paidStats(d){
-  const rows=scheduleOf(d);if(!rows.length)return null;
+  const rows=scheduleRows(d);if(!rows.length)return null;
   const now=today();let pi=0,pp=0,c=0;
-  rows.forEach(r=>{if(r.date<=now){pi+=r.int;pp+=r.prin;c++}});
+  const manualPaid=Math.max(0,Math.min(rows.length,Math.round(N(d.paidCount))));
+  rows.forEach(r=>{if(manualPaid?r.k<=manualPaid:r.date<=now){pi+=r.int;pp+=r.prin;c++}});
   return {rows,paidInt:pi,paidPrin:pp,count:c,total:rows.reduce((s,r)=>s+r.pay,0),totalInt:rows.reduce((s,r)=>s+r.int,0)};
 }
 function cardMin(d){return Math.max(N(d.payment),N(d.balance)*N(d.minPct)/100)}
@@ -996,7 +1010,7 @@ function vDebts(){
       (prog!==null?'<div class="dim">ผ่อนไปแล้ว '+paidCount+" / "+totalCount+" งวด · "+prog+'%</div><div class="meter"><i style="width:'+prog+'%"></i></div>':"")+"</td>"+
       "<td class='r'>"+(original?money(original):"—")+"</td>"+
       "<td class='r' style='font-size:14.5px'>"+money(d.balance)+"</td>"+
-      "<td class='r'>"+(N(d.rate)?fmt(d.rate,2)+"%":"—")+"<div class='dim'>"+esc(card?"บัตรหมุนเวียน":th(d.method||""))+"</div></td>"+
+      "<td class='r'>"+(N(d.rate)?fmt(d.rate,2)+"%":"—")+"</td>"+
       "<td class='r'>"+(pay?money(pay):"—")+"</td>"+
       "<td class='r'>"+(prog!==null?'<span class="pill">'+paidCount+" / "+totalCount+" งวด</span><div class='dim'>"+prog+"%</div>":"—")+"</td>"+
       "<td class='r'>"+(!card&&N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">ตารางงวด</button> ':"")+editBtn("debts",d.id)+"</td></tr>";
@@ -1012,20 +1026,36 @@ function showSchedule(id){
   const d=S.db.debts.find(x=>x.id===id);if(!d)return;
   const st=paidStats(d),veil=el('<div class="veil"></div>');
   let inner;
-  if(!st)inner='<div class="empty"><p>Add the original amount, number of instalments and contract start date, and the full schedule appears here.</p></div>';
+  if(!st)inner='<div class="empty"><p>ใส่ยอดจัด จำนวนงวด และวันเริ่มสัญญาก่อน แล้วตารางงวดจะแสดงตรงนี้</p></div>';
   else{
     const now=today();
     inner='<div class="stats" style="margin-bottom:14px">'+
-      stat("Total repayable",money(st.total),"over "+st.rows.length+" instalments")+
-      stat("Interest cost",money(st.totalInt),Math.round(st.totalInt/(N(d.principal)||1)*100)+"% of the amount borrowed")+
-      stat("Paid so far",st.count+" / "+st.rows.length,money(st.paidPrin)+" off the principal")+"</div>"+
-      tbl("<th>#</th><th>Date</th><th class='r'>Payment</th><th class='r'>Interest</th><th class='r'>Principal</th><th class='r'>Balance</th>",
+      stat("ยอดชำระทั้งหมด",money(st.total),"รวม "+st.rows.length+" งวด")+
+      stat("ดอกเบี้ยรวม",money(st.totalInt),Math.round(st.totalInt/(N(d.principal)||1)*100)+"% ของยอดจัด")+
+      stat("ผ่อนไปแล้ว",'<input class="schedInput" data-paid-count value="'+esc(d.paidCount!==undefined?d.paidCount:st.count)+'" inputmode="numeric" style="font-size:24px">',money(st.paidPrin)+" เงินต้นที่ลดแล้ว")+"</div>"+
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn ghost sm" data-sched-add>เพิ่มงวด</button></div>'+
+      tbl("<th>#</th><th>วันที่จ่าย</th><th class='r'>ยอดที่จ่าย</th><th class='r'>ดอก</th><th class='r'>ดอก %</th><th class='r'>ต้น</th><th class='r'>ต้น %</th><th class='r'>คงเหลือ</th>",
         st.rows.map(r=>{const past=r.date<=now;
-          return "<tr"+(past?' style="opacity:.5"':"")+"><td style='color:var(--faint)'>"+r.k+"</td><td>"+dshort(iso(r.date))+"</td>"+
-            "<td class='r'>"+fmt(r.pay,2)+"</td><td class='r neg'>"+fmt(r.int,2)+"</td><td class='r pos'>"+fmt(r.prin,2)+"</td><td class='r'>"+fmt(r.bal,2)+"</td></tr>"}).join(""));
+          const intPct=r.pay?Math.round(r.int/r.pay*100):0,prinPct=r.pay?Math.round(r.prin/r.pay*100):0;
+          return "<tr"+(past?' style="opacity:.5"':"")+"><td style='color:var(--faint)'>"+r.k+"</td><td><input class='schedInput' type='date' data-sched-k='"+r.k+"' data-sched-field='date' value='"+iso(r.date)+"'></td>"+
+            "<td class='r'><input class='schedInput' data-sched-k='"+r.k+"' data-sched-field='pay' value='"+fmt(r.pay,2)+"' inputmode='decimal'></td>"+
+            "<td class='r neg'><input class='schedInput neg' data-sched-k='"+r.k+"' data-sched-field='int' value='"+fmt(r.int,2)+"' inputmode='decimal'></td>"+
+            "<td class='r neg'>"+intPct+"%</td>"+
+            "<td class='r pos'><input class='schedInput pos' data-sched-k='"+r.k+"' data-sched-field='prin' value='"+fmt(r.prin,2)+"' inputmode='decimal'></td>"+
+            "<td class='r pos'>"+prinPct+"%</td>"+
+            "<td class='r'><input class='schedInput' data-sched-k='"+r.k+"' data-sched-field='bal' value='"+fmt(r.bal,2)+"' inputmode='decimal'></td></tr>"}).join(""));
   }
   veil.innerHTML='<div class="sheet" style="max-width:760px" role="dialog" aria-modal="true"><header><b>'+esc(d.name)+'</b><button class="x" aria-label="Close">'+ICON.x+'</button></header><div class="body">'+inner+"</div></div>";
   veil.querySelector(".x").onclick=()=>veil.remove();
+  veil.querySelectorAll("[data-sched-field]").forEach(i=>i.onchange=()=>{
+    d.scheduleOverrides=d.scheduleOverrides||{};
+    const row=d.scheduleOverrides[i.dataset.schedK]||(d.scheduleOverrides[i.dataset.schedK]={});
+    row[i.dataset.schedField]=i.value;
+    save();
+    veil.remove();showSchedule(id);
+  });
+  veil.querySelectorAll("[data-paid-count]").forEach(i=>i.onchange=()=>{d.paidCount=Math.max(0,Math.round(N(i.value)));save();veil.remove();showSchedule(id)});
+  veil.querySelectorAll("[data-sched-add]").forEach(b=>b.onclick=()=>{d.term=Math.round(N(d.term))+1;save();veil.remove();showSchedule(id)});
   veil.addEventListener("mousedown",e=>{if(e.target===veil)veil.remove()});
   document.getElementById("layer").appendChild(veil);
 }
