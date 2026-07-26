@@ -855,14 +855,13 @@ function vDebts(){
       (use!==null?'<div class="dim">'+use+"% of "+money(d.limit)+' limit used</div><div class="meter"><i style="width:'+Math.min(use,100)+'%;background:'+(use>60?"var(--neg)":"var(--accent)")+'"></i></div>':"")+
       (prog!==null?'<div class="dim">'+st.count+" of "+st.rows.length+' paid</div><div class="meter"><i style="width:'+prog+'%"></i></div>':"")+"</td>"+
       "<td class='r' style='font-size:14.5px'>"+money(d.balance)+"</td>"+
-      "<td class='r'>"+(N(d.rate)?fmt(d.rate,2)+"%":"—")+"</td>"+
       "<td class='r'>"+(pay?money(pay):"—")+"</td>"+
       "<td class='r'>"+(left>=999?'<span class="pill neg">not covering interest</span>':left?'<span class="pill">'+left+" left</span>":'<span class="pill pos">cleared</span>')+"</td>"+
       "<td class='r'>"+(!card&&N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">Schedule</button> ':"")+editBtn("debts",d.id)+"</td></tr>";
   }).join("");
   const tb=ds.reduce((s,d)=>s+N(d.balance),0),tp=ds.reduce((s,d)=>s+duePayment(d),0);
-  h+='<div class="card">'+tbl("<th>Account</th><th class='r'>Balance</th><th class='r'>Rate</th><th class='r'>Monthly</th><th class='r'>Remaining</th><th></th>",rows,
-    "<td>Total</td><td class='r'>"+money(tb)+"</td><td></td><td class='r'>"+money(tp)+"</td><td colspan='2'></td>")+
+  h+='<div class="card">'+tbl("<th>Account</th><th class='r'>Balance</th><th class='r'>Monthly</th><th class='r'>Remaining</th><th></th>",rows,
+    "<td>Total</td><td class='r'>"+money(tb)+"</td><td class='r'>"+money(tp)+"</td><td colspan='2'></td>")+
     '<p class="hint">Open a schedule to see interest and principal split for every instalment. Flat-rate car loans and reducing-balance mortgages are both handled.</p></div>';
   h+=docsCard("Loan documents",S.db.docs.filter(x=>["Loan agreement","Hire purchase","Mortgage deed"].includes(x.kind)));
   return h;
