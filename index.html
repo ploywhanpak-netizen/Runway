@@ -96,6 +96,32 @@ h3.sub{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:upperc
 .duo{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
 @media(max-width:880px){.duo{grid-template-columns:1fr}}
 
+/* ---------- monthly paper ---------- */
+.paper{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.paperTop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.paperSum{padding:14px 16px;border-right:1px solid var(--line)}
+.paperSum:last-child{border-right:none}
+.paperSum .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.paperSum .v{font-size:24px;font-weight:350;letter-spacing:-.03em;margin-top:4px}
+.paperGrid{display:grid;grid-template-columns:1fr 1fr;min-height:520px}
+.paperSide{padding:18px 18px 22px}
+.paperSide:first-child{border-right:1px solid var(--line)}
+.paperHead{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.paperHead h2{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.paperHead .grow{flex:1}
+.paperTable{width:100%;border-collapse:collapse;font-size:13.5px}
+.paperTable th{background:color-mix(in srgb,var(--warn) 16%,transparent);padding:7px 8px;border:1px solid var(--line);color:var(--text);font-size:12px;letter-spacing:0;text-transform:none}
+.paperTable td{padding:8px;border:1px solid var(--line);vertical-align:middle}
+.paperTable tfoot td{font-weight:650;background:var(--raised)}
+.paperTable .name{min-width:150px}
+.paperTable .num{text-align:right;white-space:nowrap}
+.paperNote{color:var(--faint);font-size:12.5px;margin-top:12px}
+@media(max-width:880px){
+  .paperTop{grid-template-columns:1fr 1fr}
+  .paperGrid{grid-template-columns:1fr}
+  .paperSide:first-child{border-right:none;border-bottom:1px solid var(--line)}
+}
+
 /* ---------- lists ---------- */
 .row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--line-2)}
 .row:last-child{border-bottom:none}
@@ -581,7 +607,7 @@ function openForm(ent,id,preset){
 }
 
 /* ═══════════ views ═══════════ */
-const TABS=[["overview","ภาพรวม"],["month","เดือนนี้"],["income","รายรับ"],["tx","เงินเข้า-ออก"],["debts","หนี้"],["ins","ประกัน"],["cars","รถ"],["props","บ้าน/คอนโด"]];
+const TABS=[["overview","ภาพรวม"],["month","รายรับ/รายจ่าย"],["debts","หนี้"],["ins","ประกัน"],["cars","รถ"],["props","บ้าน/คอนโด"]];
 function render(){
   document.getElementById("rail").innerHTML=
     '<div class="brand"><b>Runway</b><span>บัญชีครัวเรือน</span></div>'+
@@ -647,8 +673,54 @@ function pillFor(dd){
   return '<span class="pill">อีก '+dd+" วัน</span>";
 }
 
+function vPaperMonth(){
+  const income=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&isIncome(x)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const actualExpense=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&!isIncome(x));
+  const dues=monthDueItems(S.month);
+  const incTotal=income.reduce((s,x)=>s+N(x.amount),0);
+  const dueTotal=dues.reduce((s,x)=>s+N(x.amount),0);
+  const paidTotal=dues.reduce((s,x)=>s+Math.min(N(x.amount),N(x.paidAmount)),0);
+  const actualTotal=actualExpense.reduce((s,x)=>s+N(x.amount),0);
+  const expenseTotal=Math.max(dueTotal,actualTotal);
+  const paidDisplay=dues.length?paidTotal:actualTotal;
+  const remaining=Math.max(0,expenseTotal-paidDisplay);
+  const balance=incTotal-expenseTotal;
+  const incomeRows=income.map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายรับ")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td>"+
+    "<td class='num pos'>"+fmt(x.amount,2)+"</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join("");
+  const dueRows=dues.map(x=>{const amount=N(x.amount),paid=Math.min(amount,N(x.paidAmount)),left=Math.max(0,amount-paid);
+    return "<tr><td class='name' style='"+groupTint(x.cat)+"'><b>"+esc(x.item)+"</b><div class='dim'>"+esc(x.cat||"")+(x.estimate?" · ประมาณการ":"")+"</div></td>"+
+    "<td class='num'>"+fmt(amount,2)+"</td><td class='num pos'>"+fmt(paid,2)+"</td><td class='num "+(left?"neg":"pos")+"'>"+fmt(left,2)+"</td><td class='r'>"+(x.edit?editBtn(x.edit,x.id):"")+"</td></tr>";
+  }).join("");
+  const actualRows=!dues.length&&actualExpense.length?actualExpense.sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายจ่าย")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td><td class='num'>"+fmt(x.amount,2)+"</td><td class='num pos'>"+fmt(x.amount,2)+"</td><td class='num pos'>0.00</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join(""):"";
+  const advice=reductionAdvice(S.month);
+  let h=head("รายรับ / รายจ่าย",'<input type="month" data-month value="'+S.month+'" style="width:auto;padding:4px 8px;font-size:13px;margin-top:4px">',addBtn("tx","เพิ่มรายรับ",{kind:"รายรับ",date:iso(new Date())})+' <button class="btn ghost" data-add="dues" data-preset="'+esc(JSON.stringify({month:S.month}))+'">เพิ่มรายจ่าย</button>');
+  h+='<div class="paper">'+
+    '<div class="paperTop">'+
+      '<div class="paperSum"><div class="k">รายรับรวม</div><div class="v pos">'+money(incTotal)+'</div></div>'+
+      '<div class="paperSum"><div class="k">รายจ่ายรวม</div><div class="v neg">'+money(expenseTotal)+'</div></div>'+
+      '<div class="paperSum"><div class="k">ค้างจ่าย</div><div class="v '+(remaining?"neg":"pos")+'">'+money(remaining)+'</div></div>'+
+      '<div class="paperSum"><div class="k">คงเหลือ</div><div class="v '+(balance<0?"neg":"pos")+'">'+(balance<0?"−":"")+money(Math.abs(balance))+'</div></div>'+
+    '</div>'+
+    '<div class="paperGrid">'+
+      '<section class="paperSide"><div class="paperHead"><h2>รายรับ</h2><div class="grow"></div><span class="pill pos">'+money(incTotal)+'</span></div>'+
+      '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th></th></tr></thead><tbody>'+
+      (incomeRows||'<tr><td colspan="3" class="empty">ยังไม่มีรายรับเดือนนี้</td></tr>')+
+      '</tbody><tfoot><tr><td>รวมรายรับ</td><td class="num pos">'+fmt(incTotal,2)+'</td><td></td></tr></tfoot></table>'+
+      '<p class="paperNote">ใส่เงินเดือน โบนัส งานเสริม หรือรายรับอื่นทั้งหมดไว้ฝั่งนี้</p></section>'+
+      '<section class="paperSide"><div class="paperHead"><h2>รายจ่าย</h2><div class="grow"></div><span class="pill neg">'+money(expenseTotal)+'</span></div>'+
+      '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th class="num">จ่ายแล้ว</th><th class="num">ค้างจ่าย</th><th></th></tr></thead><tbody>'+
+      (dueRows||actualRows||'<tr><td colspan="5" class="empty">ยังไม่มีรายจ่ายเดือนนี้</td></tr>')+
+      '</tbody><tfoot><tr><td>รวมรายจ่าย</td><td class="num">'+fmt(expenseTotal,2)+'</td><td class="num pos">'+fmt(paidDisplay,2)+'</td><td class="num '+(remaining?"neg":"pos")+'">'+fmt(remaining,2)+'</td><td></td></tr></tfoot></table>'+
+      '<p class="paperNote">'+esc(advice.title)+" · "+esc(advice.body)+'</p></section>'+
+    '</div></div>';
+  return h;
+}
+
 /* ---- this month ---- */
 function vMonth(){
+  return vPaperMonth();
   const items=monthDueItems(S.month),tx=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&!isIncome(x));
   const total=items.reduce((s,x)=>s+N(x.amount),0);
   const paid=items.reduce((s,x)=>s+Math.min(N(x.amount),N(x.paidAmount)),0);
