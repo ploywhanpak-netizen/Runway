@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Runway — household ledger</title>
+<style>
+:root{
+  --bg:#0E1116; --surface:#151A21; --raised:#1B212B; --line:#242B36; --line-2:#1D242E;
+  --text:#E9EDF3; --dim:#8B96A6; --faint:#5B6472;
+  --accent:#6E8BFF; --accent-2:#3C5BF5; --on-accent:#0A0F1C;
+  --pos:#35C88F; --neg:#F0576E; --warn:#F2A93B;
+  --c1:#6E8BFF; --c2:#35C88F; --c3:#F2A93B; --c4:#F0576E; --c5:#A78BFA; --c6:#4CC5D6;
+  --shadow:0 18px 44px rgba(0,0,0,.5);
+  --sans:"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono","JetBrains Mono","Roboto Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+[data-theme="light"]{
+  --bg:#F5F6F8; --surface:#FFFFFF; --raised:#FFFFFF; --line:#E3E6EC; --line-2:#EDEFF3;
+  --text:#0B1018; --dim:#5A6474; --faint:#8A94A4;
+  --accent:#3C5BF5; --accent-2:#2E48D6; --on-accent:#FFFFFF;
+  --pos:#0E8A5F; --neg:#D6304F; --warn:#B5730A;
+  --c1:#3C5BF5; --c2:#0E8A5F; --c3:#B5730A; --c4:#D6304F; --c5:#7C4DEF; --c6:#0E8AA0;
+  --shadow:0 16px 40px rgba(16,24,40,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:var(--sans);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}
+.rail{border-right:1px solid var(--line);padding:22px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.brand{padding:0 10px 20px;display:flex;flex-direction:column;gap:1px}
+.brand b{font-size:16.5px;letter-spacing:-.02em;font-weight:600}
+.brand span{font-size:11px;color:var(--faint);letter-spacing:.09em;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;border:none;background:none;color:var(--dim);cursor:pointer;width:100%;text-align:left;font-size:14px}
+.nav:hover{background:var(--raised);color:var(--text)}
+.nav[aria-current="page"]{background:var(--raised);color:var(--text);font-weight:550}
+.nav[aria-current="page"] svg{color:var(--accent)}
+.nav svg{width:18px;height:18px;flex:0 0 auto}
+.nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail .foot{margin-top:auto;display:flex;gap:6px;padding:0 4px}
+main{padding:26px 30px 90px;max-width:1200px;width:100%}
+
+/* ---------- header ---------- */
+.head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.head h1{font-size:26px;font-weight:600;letter-spacing:-.03em}
+.head .sub{color:var(--dim);font-size:13.5px;margin-top:3px}
+.grow{flex:1 1 auto}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+.card.tight{padding:14px 16px}
+.ttl{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ttl h2{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.ttl .grow{flex:1}
+h3.sub{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:22px 0 10px}
+
+/* ---------- buttons ---------- */
+.btn{background:var(--accent);color:var(--on-accent);border:1px solid transparent;padding:8px 15px;border-radius:9px;font-size:13.5px;font-weight:550;cursor:pointer;white-space:nowrap;transition:filter .15s,background .15s}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--line)}
+.btn.ghost:hover{background:var(--raised);filter:none}
+.btn.sm{padding:5px 11px;font-size:12.5px;border-radius:8px}
+.btn.icon{padding:7px;border-radius:9px;background:transparent;border:1px solid var(--line);color:var(--dim);display:inline-flex}
+.btn.icon:hover{color:var(--text);background:var(--raised)}
+.btn.icon svg{width:17px;height:17px}
+.btn.warn{background:transparent;border-color:var(--line);color:var(--neg)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.stat .v{font-size:29px;font-weight:300;letter-spacing:-.035em;margin:7px 0 3px;line-height:1.1}
+.stat .n{font-size:12.5px;color:var(--dim)}
+
+/* ---------- runway (signature) ---------- */
+.runway{display:flex;gap:6px;align-items:flex-end;height:168px}
+.rcol{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;cursor:default}
+.rcol .amt{font-size:10.5px;color:var(--faint);text-align:center;letter-spacing:-.01em}
+.rstack{display:flex;flex-direction:column-reverse;border-radius:5px;overflow:hidden;min-height:3px}
+.rstack i{display:block;min-height:1px}
+.rcol.now .amt{color:var(--accent);font-weight:600}
+.raxis{display:flex;gap:6px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line-2)}
+.raxis div{flex:1;text-align:center;font-size:11px;color:var(--faint);min-width:0}
+.raxis div.now{color:var(--text);font-weight:600}
+.keys{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12.5px;color:var(--dim)}
+.keys span{display:flex;align-items:center;gap:6px}
+.keys i{width:8px;height:8px;border-radius:2px;display:block}
+
+/* ---------- two column ---------- */
+.duo{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+@media(max-width:880px){.duo{grid-template-columns:1fr}}
+
+/* ---------- lists ---------- */
+.row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+.row:last-child{border-bottom:none}
+.row .when{width:64px;flex:0 0 auto;font-size:12.5px;color:var(--faint);font-family:var(--mono)}
+.row .mid{flex:1;min-width:0}
+.row .mid b{font-weight:550;font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .mid small{color:var(--faint);font-size:12px}
+.row .amt{font-size:14px;white-space:nowrap}
+
+/* ---------- pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:550;padding:2.5px 9px;border-radius:99px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.pill.neg{color:var(--neg);border-color:color-mix(in srgb,var(--neg) 35%,transparent);background:color-mix(in srgb,var(--neg) 11%,transparent)}
+.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 11%,transparent)}
+.pill.pos{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 35%,transparent);background:color-mix(in srgb,var(--pos) 11%,transparent)}
+.pill.acc{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);background:color-mix(in srgb,var(--accent) 11%,transparent)}
+
+/* ---------- table ---------- */
+.scroll{overflow-x:auto;margin:0 -20px;padding:0 20px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:0 12px 10px;white-space:nowrap}
+th:first-child,td:first-child{padding-left:0}
+th:last-child,td:last-child{padding-right:0}
+td{padding:12px;border-top:1px solid var(--line-2);vertical-align:top}
+tbody tr:hover td{background:var(--raised)}
+.r{text-align:right;white-space:nowrap}
+.dim{color:var(--dim);font-size:12.5px;margin-top:2px}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+tfoot td{border-top:1px solid var(--line);font-weight:600;color:var(--text)}
+tfoot tr:hover td{background:none}
+
+/* ---------- meter ---------- */
+.meter{height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:7px;max-width:190px}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.barline{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.track{height:7px;border-radius:99px;background:var(--line-2);overflow:hidden;margin-bottom:13px}
+.track i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+/* ---------- donut ---------- */
+.donut{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.donut svg{flex:0 0 auto}
+.donut .mid{position:relative}
+.dlab{display:flex;flex-direction:column;gap:9px;flex:1;min-width:150px}
+.dlab .l{display:flex;align-items:center;gap:9px;font-size:13px}
+.dlab .l i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.dlab .l span{flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- forms ---------- */
+label.f{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:6px;font-weight:600}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);background:var(--bg);border-radius:9px;font-family:inherit;font-size:14px;color:var(--text)}
+[data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{background:#FBFCFD}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+textarea{min-height:66px;resize:vertical}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.field.wide{grid-column:1/-1}
+
+/* ---------- modal ---------- */
+.veil{position:fixed;inset:0;background:rgba(6,9,14,.6);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:60;overflow-y:auto}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:640px;box-shadow:var(--shadow);margin:auto}
+.sheet header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 4px}
+.sheet header b{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.sheet .body{padding:16px 20px}
+.sheet footer{display:flex;gap:9px;padding:14px 20px 18px;align-items:center}
+.x{background:none;border:none;color:var(--faint);cursor:pointer;padding:4px;border-radius:8px;display:flex}
+.x:hover{color:var(--text);background:var(--raised)}
+.x svg{width:18px;height:18px}
+@media(max-width:640px){
+  .veil{padding:0;align-items:flex-end}
+  .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:94vh;overflow-y:auto;margin:0}
+}
+
+/* ---------- misc ---------- */
+.empty{text-align:center;padding:30px 16px;color:var(--dim)}
+.empty p{font-size:13.5px;max-width:380px;margin:0 auto 16px}
+.hint{font-size:12.5px;color:var(--faint);margin-top:12px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:10px;font-size:13.5px;font-weight:550;z-index:80;box-shadow:var(--shadow)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:none;border:none;padding:6px 13px;font-size:13px;color:var(--dim);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--text);font-weight:550}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;flex-direction:row;align-items:stretch;border-right:none;border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));z-index:50;gap:0}
+  .brand{display:none}
+  .rail .foot{margin:0;padding:0;flex:0 0 auto;align-items:stretch}
+  .rail .foot [data-theme-toggle]{display:none}
+  .rail .foot .btn.icon{border:none;background:none;padding:6px 12px;align-items:center}
+  .nav{flex:1 1 0;width:auto;min-width:0;flex-direction:column;gap:3px;padding:6px 2px;font-size:10px;justify-content:center;border-radius:10px}
+  .nav span{max-width:100%;font-size:10px;letter-spacing:-.01em}
+  .nav[aria-current="page"]{background:none;color:var(--accent)}
+  main{padding:18px 16px 100px}
+  .head h1{font-size:22px}
+  .scroll{margin:0 -16px;padding:0 16px}
+  .stat .v{font-size:25px}
+}
+@media(prefers-reduced-motion:no-preference){
+  main>*{animation:rise .26s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+</style>
+
+<div class="app">
+  <nav class="rail" id="rail"></nav>
+  <main id="view"></main>
+</div>
+<div id="layer"></div>
+
+<script>
+/* ═══════════ storage ═══════════ */
+const KEY="samut-chiwit-v1";
+const BLANK={tx:[],debts:[],ins:[],cars:[],maint:[],props:[],bills:[],refi:[],docs:[],cfg:{theme:"dark"}};
+const S={db:clone(BLANK),tab:"overview",month:ym(new Date()),ok:true};
+function clone(o){return JSON.parse(JSON.stringify(o))}
+const STORE={
+  async get(){
+    try{if(window.storage&&window.storage.get){const r=await window.storage.get(KEY);if(r&&r.value)return r.value}}catch(e){}
+    try{return localStorage.getItem(KEY)}catch(e){return null}
+  },
+  async set(v){let ok=false;
+    try{if(window.storage&&window.storage.set){await window.storage.set(KEY,v);ok=true}}catch(e){}
+    try{localStorage.setItem(KEY,v);ok=true}catch(e){}
+    return ok}
+};
+async function load(){
+  try{const v=await STORE.get();if(v)S.db=Object.assign(clone(BLANK),JSON.parse(v))}catch(e){}
+  if(!S.db.cfg)S.db.cfg={theme:"dark"};
+  migrate();
+  document.documentElement.dataset.theme=S.db.cfg.theme||"dark";
+}
+let timer=null;
+function save(){clearTimeout(timer);timer=setTimeout(async()=>{
+  S.ok=await STORE.set(JSON.stringify(S.db));
+  if(!S.ok)toast("Can't save to this browser — export a backup file");
+},140)}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* translate any data saved by the earlier Thai build */
+const MAP={
+  "สินเชื่อบ้าน":"Mortgage","สินเชื่อรถ / เช่าซื้อ":"Auto loan / hire purchase","บัตรเครดิต":"Credit card",
+  "สินเชื่อส่วนบุคคล":"Personal loan","บัตรกดเงินสด":"Cash card","หนี้นอกระบบ / ยืมบุคคล":"Private loan","อื่นๆ":"Other",
+  "ลดต้นลดดอก":"Reducing balance","คงที่ (Flat rate)":"Flat rate",
+  "รายรับ":"Income","รายจ่าย":"Expense",
+  "รายเดือน":"Monthly","ราย 3 เดือน":"Quarterly","ราย 6 เดือน":"Semi-annual","รายปี":"Annual","จ่ายครั้งเดียว":"One-time",
+  "จ่ายแล้ว":"Paid","ยังไม่จ่าย":"Unpaid",
+  "ประกันรถ ชั้น 1":"Motor — class 1","ประกันรถ ชั้น 2+":"Motor — class 2+","ประกันรถ ชั้น 3+":"Motor — class 3+",
+  "ประกันรถ ชั้น 3":"Motor — class 3","พ.ร.บ. รถยนต์":"Compulsory motor (Act)","ประกันชีวิต":"Life","ประกันสุขภาพ":"Health",
+  "ประกันอุบัติเหตุ":"Personal accident","อัคคีภัยบ้าน/คอนโด":"Home & fire","ประกันสินเชื่อ (MRTA/MLTA)":"Mortgage life (MRTA/MLTA)","ประกันเดินทาง":"Travel",
+  "คอนโด":"Condo","บ้านเดี่ยว":"Detached house","ทาวน์เฮาส์":"Townhouse","ที่ดิน":"Land",
+  "สัญญาเช่าซื้อ":"Hire purchase","สัญญากู้เงิน":"Loan agreement","สัญญาซื้อขาย":"Sale & purchase","สัญญาเช่า":"Lease","สัญญาจำนอง":"Mortgage deed","ใบรับประกัน":"Warranty"
+};
+function migrate(){
+  const swap=(o,k)=>{if(o&&MAP[o[k]])o[k]=MAP[o[k]]};
+  S.db.debts.forEach(d=>{swap(d,"type");swap(d,"method")});
+  S.db.tx.forEach(t=>swap(t,"kind"));
+  S.db.ins.forEach(i=>{swap(i,"type");swap(i,"cycle")});
+  S.db.bills.forEach(b=>swap(b,"paid"));
+  S.db.props.forEach(p=>swap(p,"type"));
+  S.db.docs.forEach(d=>swap(d,"kind"));
+}
+
+/* ═══════════ helpers ═══════════ */
+const N=v=>{const n=parseFloat(String(v??"").replace(/,/g,""));return isFinite(n)?n:0};
+function fmt(n,d){n=N(n);return n.toLocaleString("en-US",{minimumFractionDigits:d??0,maximumFractionDigits:d??(Number.isInteger(n)?0:2)})}
+function money(n){return "฿"+fmt(Math.round(N(n)))}
+function compact(n){n=Math.round(N(n));if(!n)return"";if(Math.abs(n)>=1e6)return (n/1e6).toFixed(n%1e6?1:0)+"M";if(Math.abs(n)>=1000)return Math.round(n/1000)+"k";return String(n)}
+function ym(d){return d.toISOString().slice(0,7)}
+function today(){const d=new Date();d.setHours(0,0,0,0);return d}
+function iso(d){return d.toISOString().slice(0,10)}
+function pd(s){if(!s)return null;const d=new Date(s+(String(s).length===7?"-01":""));return isNaN(d)?null:d}
+function dshort(s){const d=pd(s);return d?d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"}):"—"}
+function dfull(s){const d=pd(s);return d?d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}):"—"}
+function mlabel(k){const d=pd(k);return d?d.toLocaleDateString("en-GB",{month:"short",year:"2-digit"}):k}
+function daysTo(s,t){return Math.round((pd(s)-t)/864e5)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstElementChild}
+function toast(m){document.querySelectorAll(".toast").forEach(x=>x.remove());const t=el('<div class="toast">'+esc(m)+"</div>");document.body.appendChild(t);setTimeout(()=>t.remove(),2800)}
+function svg(p,o){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(o||1.7)+'" stroke-linecap="round" stroke-linejoin="round">'+p+"</svg>"}
+const ICON={
+  overview:svg('<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>'),
+  tx:svg('<path d="M7 20V6m0 0L4 9m3-3l3 3"/><path d="M17 4v14m0 0l3-3m-3 3l-3-3"/>'),
+  debts:svg('<path d="M3 9.5L12 4l9 5.5"/><path d="M5.5 10v8M10 10v8m4 0v-8m4.5 0v8"/><path d="M3 21h18"/>'),
+  ins:svg('<path d="M12 3l7.5 3v6.2c0 4.3-3.2 7-7.5 8.8-4.3-1.8-7.5-4.5-7.5-8.8V6z"/><path d="M9.2 12.2l2 2 3.6-3.9"/>'),
+  cars:svg('<path d="M4.5 15.5h15"/><path d="M6 15.5V10l1.8-4h8.4L18 10v5.5"/><path d="M6 15.5V18h2v-2.5m8 0V18h2v-2.5"/><path d="M8 12.5h1.5m5 0H16"/>'),
+  props:svg('<path d="M3.5 10.8L12 4l8.5 6.8"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/>'),
+  cog:svg('<path d="M4 7h9"/><path d="M17.5 7H20"/><path d="M4 17h3"/><path d="M11.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/>'),
+  sun:svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.5 1.5m11.2 11.2l1.5 1.5M19.1 4.9l-1.5 1.5M6.4 17.6l-1.5 1.5"/>'),
+  moon:svg('<path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/>'),
+  x:svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+  plus:svg('<path d="M12 5v14M5 12h14"/>')
+};
+
+/* ═══════════ domain ═══════════ */
+const CYCLE={Monthly:1,Quarterly:3,"Semi-annual":6,Annual:12,"One-time":0};
+const DEBT_TYPES=["Mortgage","Auto loan / hire purchase","Credit card","Personal loan","Cash card","Private loan","Other"];
+const MORTGAGE="Mortgage",AUTO="Auto loan / hire purchase";
+const isCard=t=>t==="Credit card"||t==="Cash card";
+const isFlat=m=>/flat/i.test(m||"");
+
+const SCHEMAS={
+ tx:{one:"transaction",fields:[
+  {k:"date",l:"Date",t:"date",req:1,def:()=>iso(new Date())},
+  {k:"kind",l:"Type",t:"select",o:["Expense","Income"],req:1,drives:1},
+  {k:"cat",l:"Category",t:"list",o:d=>d.kind==="Income"
+    ?["Salary","Bonus","Freelance","Rent received","Interest & dividends","Other"]
+    :["Food & drink","Groceries","Fuel & transport","Tolls & parking","Loan payments","Home & utilities","Insurance","Car maintenance","Health","Education","Entertainment","Other"]},
+  {k:"amount",l:"Amount (THB)",t:"number",req:1},
+  {k:"pay",l:"Paid with",t:"list",o:()=>["Cash","Bank transfer","Debit card","Credit card","Direct debit"]},
+  {k:"note",l:"Note",t:"text",wide:1,ph:"What was it for?"}]},
+
+ debts:{one:"debt",fields:[
+  {k:"name",l:"Name",t:"text",req:1,ph:"e.g. Condo mortgage — SCB"},
+  {k:"type",l:"Type",t:"select",o:DEBT_TYPES,req:1,drives:1},
+  {k:"lender",l:"Lender",t:"text",ph:"Bank or company"},
+  {k:"limit",l:"Credit limit (THB)",t:"number",when:d=>isCard(d.type)},
+  {k:"principal",l:"Original amount (THB)",t:"number",when:d=>!isCard(d.type)},
+  {k:"balance",l:"Balance now (THB)",t:"number",req:1},
+  {k:"rate",l:"Interest rate (% p.a.)",t:"number"},
+  {k:"method",l:"Interest method",t:"select",o:["Reducing balance","Flat rate"],when:d=>!isCard(d.type)},
+  {k:"term",l:"Total instalments",t:"number",when:d=>!isCard(d.type)},
+  {k:"start",l:"Contract start",t:"date",when:d=>!isCard(d.type)},
+  {k:"payment",l:"Monthly payment (THB)",t:"number"},
+  {k:"minPct",l:"Minimum payment (%)",t:"number",when:d=>isCard(d.type),ph:"e.g. 8"},
+  {k:"cutDay",l:"Statement day",t:"number",when:d=>isCard(d.type),ph:"1–31"},
+  {k:"dueDay",l:"Payment due day",t:"number",ph:"1–31"},
+  {k:"note",l:"Note",t:"text",wide:1}]},
+
+ ins:{one:"policy",fields:[
+  {k:"name",l:"Policy name",t:"text",req:1,ph:"e.g. Class 1 — Honda City"},
+  {k:"type",l:"Type",t:"select",req:1,o:["Motor — class 1","Motor — class 2+","Motor — class 3+","Motor — class 3","Compulsory motor (Act)","Life","Health","Personal accident","Home & fire","Mortgage life (MRTA/MLTA)","Travel","Other"]},
+  {k:"company",l:"Insurer",t:"text"},
+  {k:"policyNo",l:"Policy number",t:"text"},
+  {k:"sum",l:"Sum insured (THB)",t:"number"},
+  {k:"premium",l:"Premium per cycle (THB)",t:"number"},
+  {k:"cycle",l:"Billing cycle",t:"select",o:Object.keys(CYCLE),req:1},
+  {k:"nextPay",l:"Next payment due",t:"date"},
+  {k:"start",l:"Cover starts",t:"date"},
+  {k:"expire",l:"Cover ends",t:"date"},
+  {k:"linkCar",l:"Covers vehicle",t:"ref",ref:"cars"},
+  {k:"linkProp",l:"Covers property",t:"ref",ref:"props"},
+  {k:"note",l:"What's covered",t:"area",wide:1}]},
+
+ cars:{one:"vehicle",fields:[
+  {k:"name",l:"Nickname",t:"text",req:1,ph:"e.g. The white one"},
+  {k:"brand",l:"Make",t:"text"},{k:"model",l:"Model",t:"text"},{k:"year",l:"Year",t:"number"},
+  {k:"plate",l:"Plate",t:"text"},{k:"prov",l:"Province",t:"text"},
+  {k:"mileage",l:"Odometer (km)",t:"number"},
+  {k:"buyDate",l:"Purchased",t:"date"},
+  {k:"price",l:"Purchase price (THB)",t:"number"},
+  {k:"taxExpire",l:"Road tax expires",t:"date"},
+  {k:"note",l:"Note",t:"text",wide:1}]},
+
+ maint:{one:"service record",fields:[
+  {k:"carId",l:"Vehicle",t:"ref",ref:"cars",req:1},
+  {k:"date",l:"Date",t:"date",req:1,def:()=>iso(new Date())},
+  {k:"mileage",l:"Odometer (km)",t:"number"},
+  {k:"item",l:"Work done",t:"text",req:1,ph:"e.g. Oil & filter change"},
+  {k:"place",l:"Garage",t:"text"},
+  {k:"cost",l:"Cost (THB)",t:"number"},
+  {k:"nextDate",l:"Next service due",t:"date"},
+  {k:"nextMileage",l:"or at odometer (km)",t:"number"},
+  {k:"note",l:"Note",t:"text",wide:1}]},
+
+ props:{one:"property",fields:[
+  {k:"name",l:"Property name",t:"text",req:1},
+  {k:"type",l:"Type",t:"select",o:["Condo","Detached house","Townhouse","Land","Other"]},
+  {k:"room",l:"Unit / house no.",t:"text"},
+  {k:"area",l:"Area (sqm)",t:"number"},
+  {k:"rate",l:"Common fee rate (THB/sqm/mo)",t:"number"},
+  {k:"common",l:"Common fee per month",t:"number"},
+  {k:"parking",l:"Parking per month",t:"number"},
+  {k:"buyDate",l:"Transfer date",t:"date"},
+  {k:"price",l:"Purchase price (THB)",t:"number"},
+  {k:"addr",l:"Address",t:"area",wide:1}]},
+
+ bills:{one:"monthly bill",fields:[
+  {k:"propId",l:"Property",t:"ref",ref:"props",req:1},
+  {k:"month",l:"Month",t:"month",req:1,def:()=>ym(new Date())},
+  {k:"common",l:"Common area fee",t:"number"},
+  {k:"water",l:"Water",t:"number"},
+  {k:"elec",l:"Electricity",t:"number"},
+  {k:"parking",l:"Parking",t:"number"},
+  {k:"other",l:"Other",t:"number"},
+  {k:"paid",l:"Status",t:"select",o:["Unpaid","Paid"]},
+  {k:"note",l:"Note",t:"text",wide:1}]},
+
+ refi:{one:"refinance",fields:[
+  {k:"propId",l:"Property",t:"ref",ref:"props"},
+  {k:"date",l:"Date completed",t:"date",req:1},
+  {k:"bank",l:"New lender",t:"text",req:1},
+  {k:"amount",l:"New loan amount (THB)",t:"number"},
+  {k:"oldRate",l:"Old rate (%)",t:"number"},
+  {k:"newRate",l:"New rate (%)",t:"number"},
+  {k:"newTerm",l:"New term (months)",t:"number"},
+  {k:"newPayment",l:"New monthly payment",t:"number"},
+  {k:"fees",l:"Total fees paid",t:"number"},
+  {k:"nextChance",l:"Can refinance again on",t:"date"},
+  {k:"note",l:"Note",t:"area",wide:1}]},
+
+ docs:{one:"document",fields:[
+  {k:"name",l:"Title",t:"text",req:1,ph:"e.g. Hire purchase agreement no. …"},
+  {k:"kind",l:"Type",t:"select",o:["Hire purchase","Loan agreement","Sale & purchase","Lease","Mortgage deed","Warranty","Other"]},
+  {k:"party",l:"Counterparty",t:"text"},
+  {k:"scope",l:"Relates to",t:"scope"},
+  {k:"start",l:"Starts",t:"date"},
+  {k:"end",l:"Ends",t:"date"},
+  {k:"value",l:"Contract value (THB)",t:"number"},
+  {k:"where",l:"Where it's kept",t:"text",ph:"e.g. Blue folder, top shelf"},
+  {k:"note",l:"Key terms",t:"area",wide:1}]}
+};
+
+function refLabel(ent,id){const r=(S.db[ent]||[]).find(x=>x.id===id);if(!r)return"";return ent==="cars"?(r.name||r.plate||"Vehicle"):(r.name||"Property")}
+function scopeOpts(){const o=[{v:"",l:"General"}];S.db.cars.forEach(c=>o.push({v:"cars:"+c.id,l:"Vehicle · "+(c.name||c.plate)}));S.db.props.forEach(p=>o.push({v:"props:"+p.id,l:"Property · "+p.name}));return o}
+
+/* ═══════════ loan maths ═══════════ */
+function pmtReducing(P,r,n){const i=r/100/12;if(!n)return 0;if(i<=0)return P/n;return P*i/(1-Math.pow(1+i,-n))}
+function scheduleOf(d){
+  const rows=[],flat=isFlat(d.method),P=N(d.principal)||N(d.balance),n=Math.round(N(d.term)),r=N(d.rate);
+  if(!P||!n)return rows;
+  let pay=N(d.payment)||(flat?(P+P*r/100*(n/12))/n:pmtReducing(P,r,n));
+  const start=pd(d.start)||today(),flatInt=P*r/100/12;
+  let bal=P;
+  for(let k=1;k<=n&&bal>.5;k++){
+    const dt=new Date(start.getFullYear(),start.getMonth()+k,start.getDate());
+    const int=flat?flatInt:bal*r/100/12;
+    let prin=pay-int;if(prin<=0)break;if(prin>bal)prin=bal;
+    bal=Math.max(0,bal-prin);
+    rows.push({k,date:dt,pay:prin+int,int,prin,bal});
+  }
+  return rows;
+}
+function remainMonths(d){
+  const bal=N(d.balance),pay=N(d.payment),r=N(d.rate);
+  if(bal<=0)return 0;if(pay<=0)return 999;
+  if(isCard(d.type)||!isFlat(d.method)){let b=bal,m=0;while(b>.5&&m<600){const i=b*r/100/12;if(pay<=i+.01)return 999;b-=pay-i;m++}return m}
+  return Math.ceil(bal/pay);
+}
+function paidStats(d){
+  const rows=scheduleOf(d);if(!rows.length)return null;
+  const now=today();let pi=0,pp=0,c=0;
+  rows.forEach(r=>{if(r.date<=now){pi+=r.int;pp+=r.prin;c++}});
+  return {rows,paidInt:pi,paidPrin:pp,count:c,total:rows.reduce((s,r)=>s+r.pay,0),totalInt:rows.reduce((s,r)=>s+r.int,0)};
+}
+function cardMin(d){return Math.max(N(d.payment),N(d.balance)*N(d.minPct)/100)}
+function duePayment(d){return isCard(d.type)?cardMin(d):N(d.payment)}
+function billTotal(b){return N(b.common)+N(b.water)+N(b.elec)+N(b.parking)+N(b.other)}
+
+function nextByDay(day){const t=today(),d=Math.min(Math.max(Math.round(N(day))||1,1),28);
+  let x=new Date(t.getFullYear(),t.getMonth(),d);if(x<t)x=new Date(t.getFullYear(),t.getMonth()+1,d);return x}
+
+function upcoming(){
+  const out=[],t=today();
+  S.db.debts.forEach(d=>{if(N(d.balance)>0&&N(d.dueDay))out.push({date:iso(nextByDay(d.dueDay)),label:(d.name||"Debt")+" payment",tag:d.type,amount:duePayment(d)})});
+  S.db.ins.forEach(p=>{
+    if(p.nextPay)out.push({date:p.nextPay,label:(p.name||"Policy")+" premium",tag:p.type,amount:N(p.premium)});
+    if(p.expire)out.push({date:p.expire,label:(p.name||"Policy")+" expires",tag:"Renewal",amount:0})});
+  S.db.cars.forEach(c=>{if(c.taxExpire)out.push({date:c.taxExpire,label:"Road tax — "+(c.name||c.plate),tag:"Vehicle",amount:0})});
+  S.db.maint.forEach(m=>{if(m.nextDate)out.push({date:m.nextDate,label:"Service — "+refLabel("cars",m.carId),tag:m.item||"Maintenance",amount:0})});
+  S.db.docs.forEach(x=>{if(x.end)out.push({date:x.end,label:(x.name||"Contract")+" ends",tag:x.kind||"Document",amount:0})});
+  S.db.bills.forEach(b=>{if(b.paid!=="Paid"&&b.month)out.push({date:b.month+"-05",label:refLabel("props",b.propId)+" bill — "+mlabel(b.month),tag:"Utilities",amount:billTotal(b)})});
+  return out.filter(x=>pd(x.date)).map(x=>Object.assign(x,{dd:daysTo(x.date,t)}))
+    .filter(x=>x.dd>=-60&&x.dd<=90).sort((a,b)=>a.dd-b.dd);
+}
+const RKEYS=[["loans","Loan payments","var(--c1)"],["ins","Insurance","var(--c5)"],["home","Housing","var(--c6)"]];
+function runway(){
+  const t=today(),M=[];
+  for(let i=0;i<12;i++){const d=new Date(t.getFullYear(),t.getMonth()+i,1);M.push({key:ym(d),loans:0,ins:0,home:0,sum:0})}
+  const add=(i,k,v)=>{if(i<0||i>11||!v)return;M[i][k]+=v;M[i].sum+=v};
+  S.db.debts.forEach(d=>{const p=duePayment(d);if(p<=0||N(d.balance)<=0)return;
+    const left=Math.min(remainMonths(d),12);for(let i=0;i<left;i++)add(i,"loans",p)});
+  S.db.ins.forEach(p=>{const step=CYCLE[p.cycle]??0,prem=N(p.premium);if(!prem)return;
+    const first=pd(p.nextPay)||pd(p.expire);if(!first)return;
+    let i=(first.getFullYear()-t.getFullYear())*12+(first.getMonth()-t.getMonth());
+    if(step===0){add(i,"ins",prem);return}
+    while(i<0)i+=step;
+    for(;i<12;i+=step)add(i,"ins",prem)});
+  S.db.props.forEach(p=>{const fixed=N(p.common)+N(p.parking);
+    const bs=S.db.bills.filter(b=>b.propId===p.id).sort((a,b)=>(b.month||"").localeCompare(a.month||"")).slice(0,3);
+    const util=bs.length?bs.reduce((s,b)=>s+N(b.water)+N(b.elec),0)/bs.length:0;
+    for(let i=0;i<12;i++)add(i,"home",fixed+util)});
+  return M;
+}
+
+/* ═══════════ form ═══════════ */
+function openForm(ent,id,preset){
+  const sc=SCHEMAS[ent],rec=id?S.db[ent].find(r=>r.id===id):null;
+  const draft=rec?Object.assign({},rec):Object.assign({},preset||{});
+  if(!rec)sc.fields.forEach(f=>{if(f.def&&!draft[f.k])draft[f.k]=f.def()});
+
+  const veil=el('<div class="veil"></div>');
+  veil.innerHTML='<div class="sheet" role="dialog" aria-modal="true"><header><b>'+(rec?"Edit ":"New ")+esc(sc.one)+'</b><button class="x" aria-label="Close">'+ICON.x+'</button></header><div class="body"><div class="grid" id="fb"></div></div><footer></footer></div>';
+  const body=veil.querySelector("#fb"),foot=veil.querySelector("footer");
+
+  function fieldHTML(f){
+    const v=draft[f.k]??"",ph=f.ph?' placeholder="'+esc(f.ph)+'"':"";
+    let inner="";
+    if(f.t==="select"){
+      const o=typeof f.o==="function"?f.o(draft):f.o;
+      inner='<select data-k="'+f.k+'"'+(f.drives?' data-drives="1"':"")+'>'+(f.req?"":'<option value=""></option>')+
+        o.map(x=>'<option'+(String(v)===x?" selected":"")+">"+esc(x)+"</option>").join("")+"</select>";
+    }else if(f.t==="ref"){
+      inner='<select data-k="'+f.k+'"><option value="">— none —</option>'+
+        (S.db[f.ref]||[]).map(r=>'<option value="'+r.id+'"'+(v===r.id?" selected":"")+">"+esc(refLabel(f.ref,r.id))+"</option>").join("")+"</select>";
+    }else if(f.t==="scope"){
+      inner='<select data-k="'+f.k+'">'+scopeOpts().map(o=>'<option value="'+esc(o.v)+'"'+(v===o.v?" selected":"")+">"+esc(o.l)+"</option>").join("")+"</select>";
+    }else if(f.t==="list"){
+      const o=(typeof f.o==="function"?f.o(draft):f.o)||[];
+      inner='<input data-k="'+f.k+'" list="dl-'+f.k+'" value="'+esc(v)+'"'+ph+'><datalist id="dl-'+f.k+'">'+o.map(x=>"<option>"+esc(x)+"</option>").join("")+"</datalist>";
+    }else if(f.t==="area"){
+      inner='<textarea data-k="'+f.k+'"'+ph+">"+esc(v)+"</textarea>";
+    }else{
+      const ty=f.t==="number"?"number":f.t==="date"?"date":f.t==="month"?"month":"text";
+      inner='<input type="'+ty+'" data-k="'+f.k+'" value="'+esc(v)+'"'+ph+(f.t==="number"?' step="any" inputmode="decimal"':"")+">";
+    }
+    return '<div class="field'+(f.wide?" wide":"")+'"><label class="f">'+esc(f.l)+"</label>"+inner+"</div>";
+  }
+  function paint(){
+    body.innerHTML=sc.fields.filter(f=>!f.when||f.when(draft)).map(fieldHTML).join("");
+    body.querySelectorAll("[data-k]").forEach(i=>{
+      i.addEventListener("input",e=>draft[e.target.dataset.k]=e.target.value);
+      i.addEventListener("change",e=>{draft[e.target.dataset.k]=e.target.value;
+        if(e.target.dataset.drives){if(sc.fields.some(f=>f.k==="cat"))draft.cat="";paint()}});
+    });
+  }
+  paint();
+  foot.innerHTML=(rec?'<button class="btn warn" id="del">Delete</button>':"")+'<div class="grow"></div><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="ok">'+(rec?"Save changes":"Add")+"</button>";
+  const close=()=>veil.remove();
+  veil.querySelector(".x").onclick=close;foot.querySelector("#cancel").onclick=close;
+  veil.addEventListener("mousedown",e=>{if(e.target===veil)close()});
+  if(rec)foot.querySelector("#del").onclick=()=>{if(confirm("Delete this "+sc.one+"? This can't be undone."))
+    {S.db[ent]=S.db[ent].filter(r=>r.id!==id);save();close();render();toast("Deleted")}};
+  foot.querySelector("#ok").onclick=()=>{
+    const miss=sc.fields.filter(f=>f.req&&(!f.when||f.when(draft))&&!String(draft[f.k]??"").trim());
+    if(miss.length){toast(miss[0].l+" is required");return}
+    if(rec)Object.assign(rec,draft);else{draft.id=uid();S.db[ent].push(draft)}
+    save();close();render();toast(rec?"Saved":"Added");
+  };
+  document.getElementById("layer").appendChild(veil);
+  const first=body.querySelector("input,select,textarea");if(first)first.focus();
+}
+
+/* ═══════════ views ═══════════ */
+const TABS=[["overview","Overview"],["tx","Money"],["debts","Debt"],["ins","Insurance"],["cars","Vehicles"],["props","Property"]];
+function render(){
+  document.getElementById("rail").innerHTML=
+    '<div class="brand"><b>Runway</b><span>Household ledger</span></div>'+
+    TABS.map(([k,l])=>'<button class="nav" data-tab="'+k+'"'+(S.tab===k?' aria-current="page"':"")+">"+ICON[k]+"<span>"+l+"</span></button>").join("")+
+    '<div class="foot"><button class="btn icon" data-theme-toggle title="Switch theme">'+(S.db.cfg.theme==="light"?ICON.moon:ICON.sun)+
+    '</button><button class="btn icon" data-tab="settings" title="Data & backup">'+ICON.cog+"</button></div>";
+  const v=document.getElementById("view");
+  v.innerHTML=({overview:vOverview,tx:vTx,debts:vDebts,ins:vIns,cars:vCars,props:vProps,settings:vSettings}[S.tab]||vOverview)();
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();window.scrollTo({top:0})});
+  document.querySelectorAll("[data-theme-toggle]").forEach(b=>b.onclick=()=>{
+    S.db.cfg.theme=S.db.cfg.theme==="light"?"dark":"light";
+    document.documentElement.dataset.theme=S.db.cfg.theme;save();render()});
+  v.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openForm(b.dataset.add,null,b.dataset.preset?JSON.parse(b.dataset.preset):null));
+  v.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
+  v.querySelectorAll("[data-sched]").forEach(b=>b.onclick=()=>showSchedule(b.dataset.sched));
+  v.querySelectorAll("[data-month]").forEach(i=>i.onchange=()=>{S.month=i.value;render()});
+}
+function head(title,sub,actions){
+  return '<div class="head"><div><h1>'+esc(title)+'</h1><div class="sub">'+sub+'</div></div><div class="grow"></div>'+(actions||"")+"</div>";
+}
+function stat(k,v,n,cls){return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v'+(cls?" "+cls:"")+'">'+v+'</div><div class="n">'+(n||"")+"</div></div>"}
+function tbl(h,rows,foot){return '<div class="scroll"><table><thead><tr>'+h+"</tr></thead><tbody>"+rows+"</tbody>"+(foot?"<tfoot><tr>"+foot+"</tr></tfoot>":"")+"</table></div>"}
+function editBtn(e,id){return '<button class="btn ghost sm" data-edit="'+e+'" data-id="'+id+'">Edit</button>'}
+function addBtn(e,label,preset){return '<button class="btn" data-add="'+e+'"'+(preset?" data-preset='"+esc(JSON.stringify(preset))+"'":"")+">"+esc(label)+"</button>"}
+function blank(title,body,ent,label){
+  return '<div class="empty"><h3 style="font-size:15px;font-weight:600;margin-bottom:6px">'+esc(title)+"</h3><p>"+esc(body)+"</p>"+addBtn(ent,label)+"</div>";
+}
+function pillFor(dd){
+  if(dd<0)return '<span class="pill neg">'+Math.abs(dd)+"d overdue</span>";
+  if(dd===0)return '<span class="pill warn">Due today</span>';
+  if(dd<=14)return '<span class="pill warn">in '+dd+"d</span>";
+  return '<span class="pill">in '+dd+"d</span>";
+}
+
+/* ---- overview ---- */
+function vOverview(){
+  const t=today(),mk=ym(t);
+  const debt=S.db.debts.reduce((s,d)=>s+N(d.balance),0);
+  const per=S.db.debts.reduce((s,d)=>s+(N(d.balance)>0?duePayment(d):0),0);
+  const m=S.db.tx.filter(x=>(x.date||"").slice(0,7)===mk);
+  const inc=m.filter(x=>x.kind==="Income").reduce((s,x)=>s+N(x.amount),0);
+  const exp=m.filter(x=>x.kind!=="Income").reduce((s,x)=>s+N(x.amount),0);
+  const net=inc-exp;
+
+  let h=head("Overview",dfull(iso(t)),addBtn("tx","Add transaction"));
+  h+='<div class="stats">'+
+    stat("Total debt",money(debt),S.db.debts.length+" account"+(S.db.debts.length===1?"":"s"))+
+    stat("Monthly obligations",money(per),"loans and cards")+
+    stat("Income this month",money(inc),m.length+" entries logged")+
+    stat("Net this month",(net<0?"−":"")+money(Math.abs(net)),inc?Math.round(exp/inc*100)+"% of income spent":"add income to see the ratio",net<0?"neg":"pos")+
+  "</div>";
+
+  const R=runway(),max=Math.max(...R.map(r=>r.sum),1),total=R.reduce((s,r)=>s+r.sum,0);
+  const peak=R.reduce((a,b)=>b.sum>a.sum?b:a,R[0]);
+  if(total>0){
+    h+='<div class="card"><div class="ttl"><h2>The next 12 months</h2><div class="grow"></div>'+
+      '<span class="pill acc">'+money(total)+" committed</span></div>"+
+      '<div class="runway">'+R.map((r,i)=>{
+        const tip=RKEYS.filter(k=>r[k[0]]>0).map(k=>k[1]+" "+money(r[k[0]])).join(" · ");
+        return '<div class="rcol'+(i===0?" now":"")+'" title="'+esc(mlabel(r.key)+" — "+tip)+'"><div class="amt">'+compact(r.sum)+"</div>"+
+          '<div class="rstack" style="height:'+Math.max(3,Math.round(r.sum/max*128))+'px">'+
+          RKEYS.map(k=>r[k[0]]>0?'<i style="flex:'+r[k[0]]+';background:'+k[2]+'"></i>':"").join("")+"</div></div>";
+      }).join("")+"</div>"+
+      '<div class="raxis">'+R.map((r,i)=>{const d=pd(r.key);
+        return '<div'+(i===0?' class="now"':"")+">"+d.toLocaleDateString("en-GB",{month:"short"})+(i===0||d.getMonth()===0?" "+String(d.getFullYear()).slice(2):"")+"</div>"}).join("")+"</div>"+
+      '<div class="keys">'+RKEYS.map(k=>'<span><i style="background:'+k[2]+'"></i>'+k[1]+"</span>").join("")+
+      '<span style="margin-left:auto;color:var(--faint)">Heaviest month: '+mlabel(peak.key)+" · "+money(peak.sum)+"</span></div></div>";
+  }
+
+  const up=upcoming(),by={};
+  S.db.debts.forEach(d=>{if(N(d.balance)>0)by[d.type||"Other"]=(by[d.type||"Other"]||0)+N(d.balance)});
+  const ks=Object.keys(by),cols=["var(--c1)","var(--c4)","var(--c3)","var(--c2)","var(--c5)","var(--c6)"];
+
+  h+='<div class="duo"><div class="card"><div class="ttl"><h2>Coming up</h2></div>';
+  h+=up.length?up.slice(0,14).map(u=>
+      '<div class="row"><div class="when">'+dshort(u.date)+'</div><div class="mid"><b>'+esc(u.label)+"</b><small>"+esc(u.tag||"")+"</small></div>"+
+      '<div class="amt">'+(u.amount?money(u.amount):"")+'</div><div>'+pillFor(u.dd)+"</div></div>").join("")
+    :'<div class="empty"><p>Nothing scheduled yet. Add a debt, a policy or a vehicle and every due date shows up here automatically.</p></div>';
+  h+="</div>";
+
+  h+='<div class="card"><div class="ttl"><h2>Debt mix</h2></div>';
+  if(debt>0){
+    const C=2*Math.PI*54;let off=0;
+    h+='<div class="donut"><svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">'+
+      '<circle cx="70" cy="70" r="54" style="fill:none;stroke:var(--line);stroke-width:15"/>'+
+      ks.map((k,i)=>{const len=by[k]/debt*C,
+        arc='<circle cx="70" cy="70" r="54" transform="rotate(-90 70 70)" style="fill:none;stroke:'+cols[i%6]+';stroke-width:15;stroke-dasharray:'+(Math.max(len-1.5,0))+' '+(C-len+1.5)+';stroke-dashoffset:'+(-off)+'"/>';
+        off+=len;return arc}).join("")+
+      '<text x="70" y="66" text-anchor="middle" style="fill:var(--text);font-size:17px;font-weight:300">'+compact(debt)+'</text>'+
+      '<text x="70" y="84" text-anchor="middle" style="fill:var(--faint);font-size:9.5px;letter-spacing:1px">THB TOTAL</text></svg>'+
+      '<div class="dlab">'+ks.map((k,i)=>'<div class="l"><i style="background:'+cols[i%6]+'"></i><span>'+esc(k)+"</span><b>"+Math.round(by[k]/debt*100)+"%</b></div>").join("")+"</div></div>";
+  }else h+='<div class="empty"><p>No debt recorded. If that\'s accurate, enjoy it.</p>'+addBtn("debts","Add a debt")+"</div>";
+  h+="</div></div>";
+  return h;
+}
+
+/* ---- money ---- */
+function vTx(){
+  const list=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const inc=list.filter(x=>x.kind==="Income").reduce((s,x)=>s+N(x.amount),0);
+  const exp=list.filter(x=>x.kind!=="Income").reduce((s,x)=>s+N(x.amount),0);
+  let h=head("Money",'<input type="month" data-month value="'+S.month+'" style="width:auto;padding:4px 8px;font-size:13px;margin-top:4px">',addBtn("tx","Add transaction"));
+  h+='<div class="stats">'+stat("Income",money(inc),"","pos")+stat("Spending",money(exp),"","neg")+
+     stat("Net",(inc-exp<0?"−":"")+money(Math.abs(inc-exp)),inc?Math.round(exp/inc*100)+"% of income spent":"")+"</div>";
+
+  h+='<div class="card">';
+  h+=list.length?tbl("<th>Date</th><th>Description</th><th>Method</th><th class='r'>Amount</th><th></th>",
+      list.map(x=>{const i=x.kind==="Income";
+        return "<tr><td style='color:var(--dim)'>"+dshort(x.date)+"</td>"+
+          "<td><b style='font-weight:550'>"+esc(x.cat||"Uncategorised")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td>"+
+          "<td style='color:var(--dim)'>"+esc(x.pay||"—")+"</td>"+
+          "<td class='r "+(i?"pos":"")+"' style='font-size:14px'>"+(i?"+":"−")+fmt(x.amount,2)+"</td>"+
+          "<td class='r'>"+editBtn("tx",x.id)+"</td></tr>"}).join(""),
+      "<td colspan='3'>Net for "+mlabel(S.month)+"</td><td class='r "+(inc-exp>=0?"pos":"neg")+"'>"+(inc-exp>=0?"+":"−")+fmt(Math.abs(inc-exp),2)+"</td><td></td>")
+    :blank("Nothing logged for "+mlabel(S.month),"Track what actually leaves the account. A month of honest entries beats a perfect budget nobody follows.","tx","Add the first one");
+  h+="</div>";
+
+  const cats={};list.filter(x=>x.kind!=="Income").forEach(x=>{cats[x.cat||"Other"]=(cats[x.cat||"Other"]||0)+N(x.amount)});
+  const top=Object.entries(cats).sort((a,b)=>b[1]-a[1]),mx=Math.max(...top.map(c=>c[1]),1);
+  if(top.length){
+    h+='<div class="card"><div class="ttl"><h2>Where it went</h2></div>'+
+      top.map(([k,v])=>'<div class="barline"><span>'+esc(k)+'</span><span style="color:var(--dim)">'+money(v)+" · "+Math.round(v/exp*100)+'%</span></div><div class="track"><i style="width:'+(v/mx*100)+'%"></i></div>').join("")+"</div>";
+  }
+  return h;
+}
+
+/* ---- debt ---- */
+function vDebts(){
+  const ds=S.db.debts;
+  let h=head("Debt",ds.length?"Balances, rates and how long each one has left":"Every loan and card in one place",addBtn("debts","Add debt"));
+  if(!ds.length)return h+'<div class="card">'+blank("No debts recorded","Add a mortgage, car loan, credit card or personal loan. Runway works out the amortisation, the payoff date and what each one costs you in interest.","debts","Add your first debt")+"</div>";
+
+  const rows=ds.map(d=>{
+    const card=isCard(d.type),pay=duePayment(d),left=remainMonths(d),st=paidStats(d);
+    const use=card&&N(d.limit)?Math.round(N(d.balance)/N(d.limit)*100):null;
+    const prog=st&&st.rows.length?Math.round(st.count/st.rows.length*100):null;
+    return "<tr><td><b style='font-weight:550'>"+esc(d.name)+"</b><div class='dim'>"+esc(d.type||"")+(d.lender?" · "+esc(d.lender):"")+(N(d.dueDay)?" · due on the "+esc(d.dueDay):"")+"</div>"+
+      (use!==null?'<div class="dim">'+use+"% of "+money(d.limit)+' limit used</div><div class="meter"><i style="width:'+Math.min(use,100)+'%;background:'+(use>60?"var(--neg)":"var(--accent)")+'"></i></div>':"")+
+      (prog!==null?'<div class="dim">'+st.count+" of "+st.rows.length+' paid</div><div class="meter"><i style="width:'+prog+'%"></i></div>':"")+"</td>"+
+      "<td class='r' style='font-size:14.5px'>"+money(d.balance)+"</td>"+
+      "<td class='r'>"+(N(d.rate)?fmt(d.rate,2)+"%":"—")+"<div class='dim'>"+esc(card?"revolving":(d.method||""))+"</div></td>"+
+      "<td class='r'>"+(pay?money(pay):"—")+"</td>"+
+      "<td class='r'>"+(left>=999?'<span class="pill neg">not covering interest</span>':left?'<span class="pill">'+left+" left</span>":'<span class="pill pos">cleared</span>')+"</td>"+
+      "<td class='r'>"+(!card&&N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">Schedule</button> ':"")+editBtn("debts",d.id)+"</td></tr>";
+  }).join("");
+  const tb=ds.reduce((s,d)=>s+N(d.balance),0),tp=ds.reduce((s,d)=>s+duePayment(d),0);
+  h+='<div class="card">'+tbl("<th>Account</th><th class='r'>Balance</th><th class='r'>Rate</th><th class='r'>Monthly</th><th class='r'>Remaining</th><th></th>",rows,
+    "<td>Total</td><td class='r'>"+money(tb)+"</td><td></td><td class='r'>"+money(tp)+"</td><td colspan='2'></td>")+
+    '<p class="hint">Open a schedule to see interest and principal split for every instalment. Flat-rate car loans and reducing-balance mortgages are both handled.</p></div>';
+  h+=docsCard("Loan documents",S.db.docs.filter(x=>["Loan agreement","Hire purchase","Mortgage deed"].includes(x.kind)));
+  return h;
+}
+function showSchedule(id){
+  const d=S.db.debts.find(x=>x.id===id);if(!d)return;
+  const st=paidStats(d),veil=el('<div class="veil"></div>');
+  let inner;
+  if(!st)inner='<div class="empty"><p>Add the original amount, number of instalments and contract start date, and the full schedule appears here.</p></div>';
+  else{
+    const now=today();
+    inner='<div class="stats" style="margin-bottom:14px">'+
+      stat("Total repayable",money(st.total),"over "+st.rows.length+" instalments")+
+      stat("Interest cost",money(st.totalInt),Math.round(st.totalInt/(N(d.principal)||1)*100)+"% of the amount borrowed")+
+      stat("Paid so far",st.count+" / "+st.rows.length,money(st.paidPrin)+" off the principal")+"</div>"+
+      tbl("<th>#</th><th>Date</th><th class='r'>Payment</th><th class='r'>Interest</th><th class='r'>Principal</th><th class='r'>Balance</th>",
+        st.rows.map(r=>{const past=r.date<=now;
+          return "<tr"+(past?' style="opacity:.5"':"")+"><td style='color:var(--faint)'>"+r.k+"</td><td>"+dshort(iso(r.date))+"</td>"+
+            "<td class='r'>"+fmt(r.pay,2)+"</td><td class='r neg'>"+fmt(r.int,2)+"</td><td class='r pos'>"+fmt(r.prin,2)+"</td><td class='r'>"+fmt(r.bal,2)+"</td></tr>"}).join(""));
+  }
+  veil.innerHTML='<div class="sheet" style="max-width:760px" role="dialog" aria-modal="true"><header><b>'+esc(d.name)+'</b><button class="x" aria-label="Close">'+ICON.x+'</button></header><div class="body">'+inner+"</div></div>";
+  veil.querySelector(".x").onclick=()=>veil.remove();
+  veil.addEventListener("mousedown",e=>{if(e.target===veil)veil.remove()});
+  document.getElementById("layer").appendChild(veil);
+}
+
+/* ---- insurance ---- */
+function vIns(){
+  const ps=S.db.ins.slice().sort((a,b)=>(a.expire||"9999").localeCompare(b.expire||"9999")),t=today();
+  let h=head("Insurance",ps.length?"Sum insured, premiums and renewal dates":"Policies, premiums and renewals",addBtn("ins","Add policy"));
+  if(!ps.length)return h+'<div class="card">'+blank("No policies yet","Motor, compulsory Act cover, life, health, home — add them once and Runway counts down to every renewal and premium date.","ins","Add your first policy")+"</div>";
+  const rows=ps.map(p=>{
+    const dd=p.expire?daysTo(p.expire,t):null,per=CYCLE[p.cycle]?N(p.premium)*12/CYCLE[p.cycle]:0;
+    const link=[p.linkCar&&refLabel("cars",p.linkCar),p.linkProp&&refLabel("props",p.linkProp)].filter(Boolean).join(" · ");
+    return "<tr><td><b style='font-weight:550'>"+esc(p.name)+"</b><div class='dim'>"+esc(p.type||"")+(p.company?" · "+esc(p.company):"")+
+      (p.policyNo?"<br>No. "+esc(p.policyNo):"")+(link?"<br>Covers "+esc(link):"")+"</div></td>"+
+      "<td class='r'>"+(N(p.sum)?money(p.sum):"—")+"</td>"+
+      "<td class='r'>"+(N(p.premium)?money(p.premium):"—")+"<div class='dim'>"+esc(p.cycle||"")+(per?" · "+money(per)+"/yr":"")+"</div></td>"+
+      "<td class='r'>"+dshort(p.nextPay)+"</td>"+
+      "<td class='r'>"+(dd===null?"—":dshort(p.expire)+"<div class='dim'>"+(dd<0?'<span class="pill neg">expired</span>':pillFor(dd))+"</div>")+"</td>"+
+      "<td class='r'>"+editBtn("ins",p.id)+"</td></tr>";
+  }).join("");
+  const yr=ps.reduce((s,p)=>s+(CYCLE[p.cycle]?N(p.premium)*12/CYCLE[p.cycle]:0),0),sum=ps.reduce((s,p)=>s+N(p.sum),0);
+  h+='<div class="card">'+tbl("<th>Policy</th><th class='r'>Sum insured</th><th class='r'>Premium</th><th class='r'>Next payment</th><th class='r'>Expires</th><th></th>",rows,
+    "<td>Total</td><td class='r'>"+money(sum)+"</td><td class='r'>"+money(yr)+"/yr</td><td colspan='3'></td>")+"</div>";
+  return h;
+}
+
+/* ---- vehicles ---- */
+function vCars(){
+  const cs=S.db.cars,t=today();
+  let h=head("Vehicles",cs.length?cs.length+" vehicle"+(cs.length===1?"":"s")+" tracked":"Insurance, contracts and service history",
+    addBtn("cars","Add vehicle")+" "+'<button class="btn ghost" data-add="maint">Log service</button>');
+  if(!cs.length)return h+'<div class="card">'+blank("No vehicles yet","Add a car and its insurance, hire purchase contract and service history stay together — useful now, more useful at resale.","cars","Add your first vehicle")+"</div>";
+
+  cs.forEach(c=>{
+    const ins=S.db.ins.filter(p=>p.linkCar===c.id),ms=S.db.maint.filter(m=>m.carId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    const loans=S.db.debts.filter(d=>d.type===AUTO),docs=S.db.docs.filter(x=>x.scope==="cars:"+c.id);
+    const dd=c.taxExpire?daysTo(c.taxExpire,t):null,spend=ms.reduce((s,m)=>s+N(m.cost),0);
+    h+='<div class="card"><div class="ttl"><h2>'+esc(c.name)+'</h2><div class="grow"></div>'+editBtn("cars",c.id)+"</div>"+
+      '<div class="dim" style="margin:-8px 0 14px">'+esc([c.brand,c.model,c.year].filter(Boolean).join(" "))+
+      (c.plate?" · "+esc(c.plate)+(c.prov?" "+esc(c.prov):""):"")+(N(c.mileage)?" · "+fmt(c.mileage)+" km":"")+"</div>"+
+      '<div class="stats">'+
+        stat("Road tax",c.taxExpire?dshort(c.taxExpire):"—",dd===null?"no expiry set":(dd<0?Math.abs(dd)+" days overdue":dd+" days left"))+
+        stat("Policies",String(ins.length),ins.map(p=>p.type).join(" · ")||"nothing linked yet")+
+        stat("Servicing to date",money(spend),ms.length+" visit"+(ms.length===1?"":"s"))+"</div>";
+
+    if(ins.length)h+='<h3 class="sub">Insurance</h3>'+tbl("<th>Policy</th><th class='r'>Sum insured</th><th class='r'>Premium</th><th class='r'>Expires</th><th></th>",
+      ins.map(p=>"<tr><td>"+esc(p.name)+"<div class='dim'>"+esc(p.type)+(p.company?" · "+esc(p.company):"")+"</div></td><td class='r'>"+money(p.sum)+"</td><td class='r'>"+money(p.premium)+"</td><td class='r'>"+dshort(p.expire)+"</td><td class='r'>"+editBtn("ins",p.id)+"</td></tr>").join(""));
+
+    if(loans.length)h+='<h3 class="sub">Finance</h3>'+tbl("<th>Account</th><th class='r'>Balance</th><th class='r'>Monthly</th><th></th>",
+      loans.map(d=>"<tr><td>"+esc(d.name)+"<div class='dim'>"+esc(d.lender||"")+"</div></td><td class='r'>"+money(d.balance)+"</td><td class='r'>"+money(d.payment)+"</td><td class='r'>"+(N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">Schedule</button>':"")+"</td></tr>").join(""));
+
+    h+='<h3 class="sub">Service history</h3>';
+    h+=ms.length?tbl("<th>Date</th><th class='r'>Odometer</th><th>Work done</th><th class='r'>Cost</th><th class='r'>Next due</th><th></th>",
+      ms.map(m=>"<tr><td>"+dshort(m.date)+"</td><td class='r'>"+(N(m.mileage)?fmt(m.mileage):"—")+"</td><td>"+esc(m.item)+(m.place?"<div class='dim'>"+esc(m.place)+"</div>":"")+"</td><td class='r'>"+money(m.cost)+"</td><td class='r'>"+(m.nextDate?dshort(m.nextDate):"—")+(N(m.nextMileage)?"<div class='dim'>or "+fmt(m.nextMileage)+" km</div>":"")+"</td><td class='r'>"+editBtn("maint",m.id)+"</td></tr>").join(""))
+      :'<div class="empty"><p>No service logged yet.</p><button class="btn ghost" data-add="maint">Log a service</button></div>';
+    h+=docsCard("Documents",docs,"cars:"+c.id,true)+"</div>";
+  });
+  return h;
+}
+
+/* ---- property ---- */
+function vProps(){
+  const ps=S.db.props;
+  let h=head("Property",ps.length?"Bills, mortgage and paperwork per property":"Bills, mortgage, refinancing and contracts",
+    addBtn("props","Add property")+' <button class="btn ghost" data-add="bills">Add bill</button>');
+  if(!ps.length)return h+'<div class="card">'+blank("No property yet","Add a condo or house to track the common area fee, water, electricity and parking alongside the mortgage — principal, interest and balance in one view.","props","Add your first property")+"</div>";
+
+  ps.forEach(p=>{
+    const bills=S.db.bills.filter(b=>b.propId===p.id).sort((a,b)=>(b.month||"").localeCompare(a.month||""));
+    const ins=S.db.ins.filter(x=>x.linkProp===p.id),loans=S.db.debts.filter(d=>d.type===MORTGAGE);
+    const refis=S.db.refi.filter(r=>r.propId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    const docs=S.db.docs.filter(x=>x.scope==="props:"+p.id);
+    const avgSet=bills.slice(0,6),avg=avgSet.length?avgSet.reduce((s,b)=>s+billTotal(b),0)/avgSet.length:0;
+    const unpaid=bills.filter(b=>b.paid!=="Paid").reduce((s,b)=>s+billTotal(b),0);
+    const lp=loans.reduce((s,d)=>s+N(d.payment),0),lb=loans.reduce((s,d)=>s+N(d.balance),0);
+    const fixed=N(p.common)+N(p.parking);
+
+    h+='<div class="card"><div class="ttl"><h2>'+esc(p.name)+'</h2><div class="grow"></div>'+editBtn("props",p.id)+"</div>"+
+      '<div class="dim" style="margin:-8px 0 14px">'+esc([p.type,p.room&&("Unit "+p.room),N(p.area)&&(fmt(p.area)+" sqm")].filter(Boolean).join(" · "))+
+      (N(p.rate)?" · common fee "+fmt(p.rate,2)+"/sqm":"")+"</div>"+
+      '<div class="stats">'+
+        stat("Running cost / month",money(fixed+Math.max(0,avg-fixed)),"fees, parking and average utilities")+
+        stat("Mortgage balance",money(lb),lp?money(lp)+" per month":"no mortgage linked")+
+        stat("Unpaid bills",money(unpaid),unpaid?"settle before the late fee":"all settled")+"</div>";
+
+    if(loans.length){
+      h+='<h3 class="sub">Mortgage</h3>';
+      loans.forEach(d=>{const st=paidStats(d);
+        h+=tbl("<th>Account</th><th class='r'>Balance</th><th class='r'>Rate</th><th class='r'>Monthly</th><th class='r'>Interest paid</th><th></th>",
+          "<tr><td><b style='font-weight:550'>"+esc(d.name)+"</b><div class='dim'>"+esc(d.lender||"")+" · "+esc(d.method||"")+(N(d.term)?" · "+d.term+" instalments":"")+"</div></td>"+
+          "<td class='r'>"+money(d.balance)+"</td><td class='r'>"+fmt(d.rate,2)+"%</td><td class='r'>"+money(d.payment)+"</td>"+
+          "<td class='r'>"+(st?money(st.paidInt)+"<div class='dim'>"+money(st.paidPrin)+" off principal</div>":"—")+"</td>"+
+          "<td class='r'>"+(N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">Schedule</button> ':"")+editBtn("debts",d.id)+"</td></tr>");
+      });
+    }
+
+    h+='<h3 class="sub">Bills</h3>';
+    h+=bills.length?tbl("<th>Month</th><th class='r'>Common</th><th class='r'>Water</th><th class='r'>Electricity</th><th class='r'>Parking</th><th class='r'>Other</th><th class='r'>Total</th><th class='r'>Status</th><th></th>",
+      bills.map(b=>"<tr><td>"+mlabel(b.month)+"</td><td class='r'>"+fmt(b.common)+"</td><td class='r'>"+fmt(b.water)+"</td><td class='r'>"+fmt(b.elec)+"</td><td class='r'>"+fmt(b.parking)+"</td><td class='r'>"+fmt(b.other)+"</td><td class='r'><b>"+money(billTotal(b))+"</b></td><td class='r'>"+(b.paid==="Paid"?'<span class="pill pos">paid</span>':'<span class="pill warn">unpaid</span>')+"</td><td class='r'>"+editBtn("bills",b.id)+"</td></tr>").join(""),
+      "<td>Average of last "+avgSet.length+"</td><td colspan='5'></td><td class='r'>"+money(avg)+"</td><td colspan='2'></td>")
+      :'<div class="empty"><p>No bills logged. A year of entries shows exactly how much the hot season costs you.</p><button class="btn ghost" data-add="bills">Add a bill</button></div>';
+
+    if(ins.length)h+='<h3 class="sub">Insurance</h3>'+tbl("<th>Policy</th><th class='r'>Sum insured</th><th class='r'>Premium</th><th class='r'>Expires</th><th></th>",
+      ins.map(x=>"<tr><td>"+esc(x.name)+"<div class='dim'>"+esc(x.type)+"</div></td><td class='r'>"+money(x.sum)+"</td><td class='r'>"+money(x.premium)+"</td><td class='r'>"+dshort(x.expire)+"</td><td class='r'>"+editBtn("ins",x.id)+"</td></tr>").join(""));
+
+    h+='<h3 class="sub">Refinancing</h3>';
+    h+=refis.length?tbl("<th>Date</th><th>Lender</th><th class='r'>Amount</th><th class='r'>Rate</th><th class='r'>New payment</th><th class='r'>Fees</th><th class='r'>Next window</th><th></th>",
+      refis.map(r=>"<tr><td>"+dshort(r.date)+"</td><td>"+esc(r.bank)+(r.note?"<div class='dim'>"+esc(r.note)+"</div>":"")+"</td><td class='r'>"+money(r.amount)+"</td><td class='r'>"+(N(r.oldRate)?fmt(r.oldRate,2)+"% → ":"")+fmt(r.newRate,2)+"%</td><td class='r'>"+money(r.newPayment)+"</td><td class='r'>"+money(r.fees)+"</td><td class='r'>"+dshort(r.nextChance)+"</td><td class='r'>"+editBtn("refi",r.id)+"</td></tr>").join(""))
+      :'<div class="empty"><p>No refinancing recorded. Most Thai mortgages open a window after three years — log the date and it lands in Coming up.</p><button class="btn ghost" data-add="refi">Record a refinance</button></div>';
+
+    h+=docsCard("Documents",docs,"props:"+p.id,true)+"</div>";
+  });
+  return h;
+}
+
+function docsCard(title,docs,scope,inline){
+  let h=inline?'<h3 class="sub">'+esc(title)+"</h3>":'<div class="card"><div class="ttl"><h2>'+esc(title)+"</h2></div>";
+  h+=docs.length?tbl("<th>Document</th><th>Counterparty</th><th class='r'>Starts</th><th class='r'>Ends</th><th class='r'>Value</th><th></th>",
+    docs.map(x=>"<tr><td><b style='font-weight:550'>"+esc(x.name)+"</b><div class='dim'>"+esc(x.kind||"")+(x.where?" · "+esc(x.where):"")+"</div>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td><td style='color:var(--dim)'>"+esc(x.party||"—")+"</td><td class='r'>"+dshort(x.start)+"</td><td class='r'>"+dshort(x.end)+"</td><td class='r'>"+(N(x.value)?money(x.value):"—")+"</td><td class='r'>"+editBtn("docs",x.id)+"</td></tr>").join(""))
+    :'<div class="empty"><p>No documents filed.</p></div>';
+  h+='<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost sm" data-add="docs"'+(scope?" data-preset='"+esc(JSON.stringify({scope}))+"'":"")+">Add document</button></div>";
+  return h+(inline?"":"</div>");
+}
+
+/* ---- settings ---- */
+function vSettings(){
+  const names={tx:"Transactions",debts:"Debts",ins:"Policies",cars:"Vehicles",maint:"Service records",props:"Properties",bills:"Bills",refi:"Refinances",docs:"Documents"};
+  return head("Data & backup","Everything lives in this browser, on this device")+
+    '<div class="stats">'+Object.keys(names).map(k=>stat(names[k],String((S.db[k]||[]).length),"")).join("")+"</div>"+
+    '<div class="card"><div class="ttl"><h2>Backup</h2></div>'+
+    '<p style="color:var(--dim);font-size:13.5px;max-width:560px">Nothing is uploaded anywhere. That also means a cleared browser wipes it. Export a file once a month, and import it on any other device to carry the ledger across.</p>'+
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="exp">Export backup</button>'+
+    '<button class="btn ghost" id="impBtn">Import backup</button><input type="file" id="imp" accept="application/json" style="display:none">'+
+    '<div class="grow"></div><button class="btn warn" id="wipe">Erase everything</button></div></div>'+
+    '<div class="card"><div class="ttl"><h2>Appearance</h2></div><div class="seg">'+
+    '<button data-set-theme="dark" aria-pressed="'+(S.db.cfg.theme!=="light")+'">Dark</button>'+
+    '<button data-set-theme="light" aria-pressed="'+(S.db.cfg.theme==="light")+'">Light</button></div></div>';
+}
+
+/* ═══════════ events ═══════════ */
+document.addEventListener("click",e=>{
+  const th=e.target.closest("[data-set-theme]");
+  if(th){S.db.cfg.theme=th.dataset.setTheme;document.documentElement.dataset.theme=th.dataset.setTheme;save();render();return}
+  const id=e.target.id;
+  if(id==="exp"){
+    const b=new Blob([JSON.stringify(S.db,null,2)],{type:"application/json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="runway-backup-"+iso(new Date())+".json";a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast("Backup downloaded");
+  }
+  if(id==="impBtn")document.getElementById("imp").click();
+  if(id==="wipe"&&confirm("Erase every record? Without a backup file this cannot be undone.")){
+    const th=S.db.cfg.theme;S.db=clone(BLANK);S.db.cfg.theme=th;save();render();toast("Everything erased");
+  }
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="imp"&&e.target.files[0]){
+    const fr=new FileReader();
+    fr.onload=()=>{try{
+      S.db=Object.assign(clone(BLANK),JSON.parse(fr.result));if(!S.db.cfg)S.db.cfg={theme:"dark"};
+      migrate();document.documentElement.dataset.theme=S.db.cfg.theme;save();render();toast("Backup restored");
+    }catch(err){toast("That file couldn't be read — use a Runway backup")}};
+    fr.readAsText(e.target.files[0]);
+  }
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){const v=document.querySelector(".veil");if(v)v.remove()}});
+
+(async()=>{await load();render()})();
+</script>
