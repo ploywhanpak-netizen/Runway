@@ -96,6 +96,26 @@ h3.sub{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:upperc
 .duo{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
 @media(max-width:880px){.duo{grid-template-columns:1fr}}
 
+/* ---------- monthly paper ---------- */
+.paper{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:16px}
+.paperGrid{display:grid;grid-template-columns:1fr 1fr;min-height:520px}
+.paperSide{padding:18px 18px 22px}
+.paperSide:first-child{border-right:1px solid var(--line)}
+.paperHead{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.paperHead h2{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.paperHead .grow{flex:1}
+.paperTable{width:100%;border-collapse:collapse;font-size:13.5px}
+.paperTable th{background:color-mix(in srgb,var(--warn) 16%,transparent);padding:7px 8px;border:1px solid var(--line);color:var(--text);font-size:12px;letter-spacing:0;text-transform:none}
+.paperTable td{padding:8px;border:1px solid var(--line);vertical-align:middle}
+.paperTable tfoot td{font-weight:650;background:var(--raised)}
+.paperTable .name{min-width:150px}
+.paperTable .num{text-align:right;white-space:nowrap}
+.paperNote{color:var(--faint);font-size:12.5px;margin-top:12px}
+@media(max-width:880px){
+  .paperGrid{grid-template-columns:1fr}
+  .paperSide:first-child{border-right:none;border-bottom:1px solid var(--line)}
+}
+
 /* ---------- lists ---------- */
 .row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--line-2)}
 .row:last-child{border-bottom:none}
@@ -206,7 +226,7 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 <script>
 /* ═══════════ storage ═══════════ */
 const KEY="samut-chiwit-v1";
-const BLANK={tx:[],debts:[],ins:[],cars:[],maint:[],props:[],bills:[],refi:[],docs:[],cfg:{theme:"dark"}};
+const BLANK={tx:[],dues:[],debts:[],ins:[],cars:[],maint:[],props:[],bills:[],refi:[],docs:[],cfg:{theme:"dark"}};
 const S={db:clone(BLANK),tab:"overview",month:ym(new Date()),ok:true};
 function clone(o){return JSON.parse(JSON.stringify(o))}
 const STORE={
@@ -275,6 +295,7 @@ function toast(m){document.querySelectorAll(".toast").forEach(x=>x.remove());con
 function svg(p,o){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(o||1.7)+'" stroke-linecap="round" stroke-linejoin="round">'+p+"</svg>"}
 const ICON={
   overview:svg('<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>'),
+  month:svg('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/><path d="M8 14h3m3 0h2M8 17h2"/>'),
   tx:svg('<path d="M7 20V6m0 0L4 9m3-3l3 3"/><path d="M17 4v14m0 0l3-3m-3 3l-3-3"/>'),
   debts:svg('<path d="M3 9.5L12 4l9 5.5"/><path d="M5.5 10v8M10 10v8m4 0v-8m4.5 0v8"/><path d="M3 21h18"/>'),
   ins:svg('<path d="M12 3l7.5 3v6.2c0 4.3-3.2 7-7.5 8.8-4.3-1.8-7.5-4.5-7.5-8.8V6z"/><path d="M9.2 12.2l2 2 3.6-3.9"/>'),
@@ -293,6 +314,7 @@ const DEBT_TYPES=["Mortgage","Auto loan / hire purchase","Credit card","Personal
 const MORTGAGE="Mortgage",AUTO="Auto loan / hire purchase";
 const isCard=t=>t==="Credit card"||t==="Cash card";
 const isFlat=m=>/flat/i.test(m||"");
+const isIncome=x=>x&&x.kind==="Income"||x&&x.kind==="รายรับ";
 
 const SCHEMAS={
  tx:{one:"transaction",fields:[
@@ -304,6 +326,14 @@ const SCHEMAS={
   {k:"amount",l:"Amount (THB)",t:"number",req:1},
   {k:"pay",l:"Paid with",t:"list",o:()=>["Cash","Bank transfer","Debit card","Credit card","Direct debit"]},
   {k:"note",l:"Note",t:"text",wide:1,ph:"What was it for?"}]},
+
+ dues:{one:"รายการรายจ่าย",fields:[
+  {k:"month",l:"เดือน",t:"month",req:1,def:()=>S.month||ym(new Date())},
+  {k:"name",l:"รายการ",t:"text",req:1,ph:"เช่น KTC, ค่าไฟ, ค่าคอนโด"},
+  {k:"cat",l:"หมวด",t:"select",o:["บ้าน/คอนโด","รถ","เงินกู้/เงินสด","บัตร","ผ่อนสินค้า","ค่าน้ำค่าไฟ","ประกัน","อื่นๆ"],req:1},
+  {k:"amount",l:"ยอดที่ต้องจ่าย",t:"number"},
+  {k:"paid",l:"จ่ายแล้ว",t:"number"},
+  {k:"note",l:"หมายเหตุ",t:"text",wide:1}]},
 
  debts:{one:"debt",fields:[
   {k:"name",l:"Name",t:"text",req:1,ph:"e.g. Condo mortgage — SCB"},
@@ -444,6 +474,33 @@ function billTotal(b){return N(b.common)+N(b.water)+N(b.elec)+N(b.parking)+N(b.o
 
 function nextByDay(day){const t=today(),d=Math.min(Math.max(Math.round(N(day))||1,1),28);
   let x=new Date(t.getFullYear(),t.getMonth(),d);if(x<t)x=new Date(t.getFullYear(),t.getMonth()+1,d);return x}
+function dateInMonth(mk,day){const [y,m]=String(mk).split("-").map(Number),last=new Date(y,m,0).getDate(),d=Math.min(Math.max(Math.round(N(day))||1,1),last);return mk+"-"+String(d).padStart(2,"0")}
+function groupTint(cat){
+  cat=String(cat||"");
+  if(/บ้าน|คอนโด|ค่าน้ำ|ค่าไฟ/.test(cat))return "background:color-mix(in srgb,var(--c5) 18%,transparent)";
+  if(/รถ/.test(cat))return "background:color-mix(in srgb,var(--pos) 18%,transparent)";
+  if(/เงินกู้|บัตร|หนี้/.test(cat))return "background:color-mix(in srgb,var(--c1) 18%,transparent)";
+  if(/ผ่อน/.test(cat))return "background:color-mix(in srgb,var(--c3) 18%,transparent)";
+  if(/ประกัน/.test(cat))return "background:color-mix(in srgb,var(--c6) 18%,transparent)";
+  return "background:color-mix(in srgb,var(--line) 45%,transparent)";
+}
+function monthDueItems(mk){
+  const out=[];
+  (S.db.dues||[]).forEach(x=>{
+    if(x.month===mk)out.push({date:dateInMonth(mk,1),item:x.name||"รายการจ่าย",cat:x.cat||"อื่นๆ",amount:N(x.amount),paidAmount:N(x.paid),edit:"dues",id:x.id,note:x.note});
+  });
+  S.db.debts.forEach(d=>{
+    const amount=duePayment(d);
+    if(N(d.balance)>0&&amount>0)out.push({date:dateInMonth(mk,d.dueDay||1),item:(d.name||"หนี้")+" ค่างวด",cat:"หนี้",amount,paidAmount:0,edit:"debts",id:d.id});
+  });
+  S.db.ins.forEach(p=>{
+    if((p.nextPay||"").slice(0,7)===mk&&N(p.premium)>0)out.push({date:p.nextPay,item:(p.name||"ประกัน")+" ค่าเบี้ยประกัน",cat:"ประกัน",amount:N(p.premium),paidAmount:0,edit:"ins",id:p.id});
+  });
+  S.db.bills.forEach(b=>{
+    if(b.month===mk)out.push({date:dateInMonth(mk,5),item:refLabel("props",b.propId)+" บิลบ้าน/คอนโด",cat:"บ้าน/คอนโด",amount:billTotal(b),paidAmount:b.paid==="Paid"?billTotal(b):0,edit:"bills",id:b.id});
+  });
+  return out.sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+}
 
 function upcoming(){
   const out=[],t=today();
@@ -537,7 +594,7 @@ function openForm(ent,id,preset){
 }
 
 /* ═══════════ views ═══════════ */
-const TABS=[["overview","Overview"],["tx","Money"],["debts","Debt"],["ins","Insurance"],["cars","Vehicles"],["props","Property"]];
+const TABS=[["overview","Overview"],["month","รายรับ/รายจ่าย"],["tx","Money"],["debts","Debt"],["ins","Insurance"],["cars","Vehicles"],["props","Property"]];
 function render(){
   document.getElementById("rail").innerHTML=
     '<div class="brand"><b>Runway</b><span>Household ledger</span></div>'+
@@ -545,7 +602,7 @@ function render(){
     '<div class="foot"><button class="btn icon" data-theme-toggle title="Switch theme">'+(S.db.cfg.theme==="light"?ICON.moon:ICON.sun)+
     '</button><button class="btn icon" data-tab="settings" title="Data & backup">'+ICON.cog+"</button></div>";
   const v=document.getElementById("view");
-  v.innerHTML=({overview:vOverview,tx:vTx,debts:vDebts,ins:vIns,cars:vCars,props:vProps,settings:vSettings}[S.tab]||vOverview)();
+  v.innerHTML=({overview:vOverview,month:vPaperMonth,tx:vTx,debts:vDebts,ins:vIns,cars:vCars,props:vProps,settings:vSettings}[S.tab]||vOverview)();
   document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();window.scrollTo({top:0})});
   document.querySelectorAll("[data-theme-toggle]").forEach(b=>b.onclick=()=>{
     S.db.cfg.theme=S.db.cfg.theme==="light"?"dark":"light";
@@ -570,6 +627,50 @@ function pillFor(dd){
   if(dd===0)return '<span class="pill warn">Due today</span>';
   if(dd<=14)return '<span class="pill warn">in '+dd+"d</span>";
   return '<span class="pill">in '+dd+"d</span>";
+}
+
+/* ---- monthly paper ---- */
+function vPaperMonth(){
+  const income=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&isIncome(x)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const actualExpense=S.db.tx.filter(x=>(x.date||"").slice(0,7)===S.month&&!isIncome(x));
+  const dues=monthDueItems(S.month);
+  const incTotal=income.reduce((s,x)=>s+N(x.amount),0);
+  const dueTotal=dues.reduce((s,x)=>s+N(x.amount),0);
+  const paidTotal=dues.reduce((s,x)=>s+Math.min(N(x.amount),N(x.paidAmount)),0);
+  const actualTotal=actualExpense.reduce((s,x)=>s+N(x.amount),0);
+  const expenseTotal=Math.max(dueTotal,actualTotal);
+  const paidDisplay=dues.length?paidTotal:actualTotal;
+  const remaining=Math.max(0,expenseTotal-paidDisplay);
+  const balance=incTotal-expenseTotal;
+  const incomeRows=income.map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายรับ")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td>"+
+    "<td class='num pos'>"+fmt(x.amount,2)+"</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join("");
+  const dueRows=dues.map(x=>{const amount=N(x.amount),paid=Math.min(amount,N(x.paidAmount)),left=Math.max(0,amount-paid);
+    return "<tr><td class='name' style='"+groupTint(x.cat)+"'><b>"+esc(x.item)+"</b><div class='dim'>"+esc(x.cat||"")+"</div></td>"+
+    "<td class='num'>"+fmt(amount,2)+"</td><td class='num pos'>"+fmt(paid,2)+"</td><td class='num "+(left?"neg":"pos")+"'>"+fmt(left,2)+"</td><td class='r'>"+(x.edit?editBtn(x.edit,x.id):"")+"</td></tr>";
+  }).join("");
+  const actualRows=!dues.length&&actualExpense.length?actualExpense.sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(x=>
+    "<tr><td class='name'><b>"+esc(x.cat||"รายจ่าย")+"</b>"+(x.note?"<div class='dim'>"+esc(x.note)+"</div>":"")+"</td><td class='num'>"+fmt(x.amount,2)+"</td><td class='num pos'>"+fmt(x.amount,2)+"</td><td class='num pos'>0.00</td><td class='r'>"+editBtn("tx",x.id)+"</td></tr>").join(""):"";
+  let h=head("รายรับ / รายจ่าย",'<input type="month" data-month value="'+S.month+'" style="width:auto;padding:4px 8px;font-size:13px;margin-top:4px">',addBtn("tx","เพิ่มรายรับ",{kind:"Income",date:iso(new Date())})+' <button class="btn ghost" data-add="dues" data-preset="'+esc(JSON.stringify({month:S.month}))+'">เพิ่มรายจ่าย</button>');
+  h+='<div class="stats">'+
+    stat("รายรับรวม",money(incTotal),"เงินเดือน โบนัส งานเสริม","pos")+
+    stat("รายจ่ายรวม",money(expenseTotal),"รวมยอดที่ต้องจ่าย","neg")+
+    stat("ค้างจ่าย",money(remaining),remaining?"ยังต้องจัดการ":"เคลียร์แล้ว",remaining?"neg":"pos")+
+    stat("คงเหลือ",(balance<0?"−":"")+money(Math.abs(balance)),balance<0?"รายจ่ายเกินรายรับ":"หลังหักรายจ่าย",balance<0?"neg":"pos")+
+    "</div>";
+  h+='<div class="paper"><div class="paperGrid">'+
+    '<section class="paperSide"><div class="paperHead"><h2>รายรับ</h2><div class="grow"></div><span class="pill pos">'+money(incTotal)+'</span></div>'+
+    '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th></th></tr></thead><tbody>'+
+    (incomeRows||'<tr><td colspan="3" class="empty">ยังไม่มีรายรับเดือนนี้</td></tr>')+
+    '</tbody><tfoot><tr><td>รวมรายรับ</td><td class="num pos">'+fmt(incTotal,2)+'</td><td></td></tr></tfoot></table>'+
+    '<p class="paperNote">ฝั่งนี้ใส่รายรับ เช่น เงินเดือน โบนัส งานเสริม หรือรายรับอื่น</p></section>'+
+    '<section class="paperSide"><div class="paperHead"><h2>รายจ่าย</h2><div class="grow"></div><span class="pill neg">'+money(expenseTotal)+'</span></div>'+
+    '<table class="paperTable"><thead><tr><th>รายการ</th><th class="num">ยอด</th><th class="num">จ่ายแล้ว</th><th class="num">ค้างจ่าย</th><th></th></tr></thead><tbody>'+
+    (dueRows||actualRows||'<tr><td colspan="5" class="empty">ยังไม่มีรายจ่ายเดือนนี้</td></tr>')+
+    '</tbody><tfoot><tr><td>รวมรายจ่าย</td><td class="num">'+fmt(expenseTotal,2)+'</td><td class="num pos">'+fmt(paidDisplay,2)+'</td><td class="num '+(remaining?"neg":"pos")+'">'+fmt(remaining,2)+'</td><td></td></tr></tfoot></table>'+
+    '<p class="paperNote">ฝั่งนี้ตั้งใจให้เป็นตาราง เพื่อกรอกเช็กยอดเหมือนกระดาษรายเดือน</p></section>'+
+    '</div></div>';
+  return h;
 }
 
 /* ---- overview ---- */
