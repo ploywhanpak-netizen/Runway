@@ -317,6 +317,7 @@ function svg(p,o){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const ICON={
   overview:svg('<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>'),
   month:svg('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/><path d="M8 14h3m3 0h2M8 17h2"/>'),
+  log:svg('<path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
   income:svg('<path d="M12 3v18"/><path d="M7 8.5c0-2 2-3.2 5-3.2s5 1.2 5 3.2-1.6 2.8-5 3.4-5 1.4-5 3.5 2 3.3 5 3.3 5-1.2 5-3.3"/><path d="M4 19h16"/>'),
   tx:svg('<path d="M7 20V6m0 0L4 9m3-3l3 3"/><path d="M17 4v14m0 0l3-3m-3 3l-3-3"/>'),
   debts:svg('<path d="M3 9.5L12 4l9 5.5"/><path d="M5.5 10v8M10 10v8m4 0v-8m4.5 0v8"/><path d="M3 21h18"/>'),
@@ -976,6 +977,35 @@ function vDebts(){
     "<td>Total</td><td class='r'>"+money(tb)+"</td><td></td><td class='r'>"+money(tp)+"</td><td colspan='2'></td>")+
     '<p class="hint">Open a schedule to see interest and principal split for every instalment. Flat-rate car loans and reducing-balance mortgages are both handled.</p></div>';
   h+=docsCard("Loan documents",S.db.docs.filter(x=>["Loan agreement","Hire purchase","Mortgage deed"].includes(x.kind)));
+  return h;
+}
+function vDebts(){
+  const ds=S.db.debts;
+  let h=head("บันทึกหนี้",ds.length?"ยอดจัด คงเหลือ งวดละ และความคืบหน้าการผ่อน":"รวมสินเชื่อและบัตรทั้งหมดไว้ที่เดียว",addBtn("debts","เพิ่มหนี้"));
+  if(!ds.length)return h+'<div class="card">'+blank("ยังไม่มีหนี้ที่บันทึก","เพิ่มสินเชื่อบ้าน รถ บัตรเครดิต หรือสินเชื่อส่วนบุคคล แล้วระบบจะช่วยดูยอดจัด ยอดคงเหลือ และผ่อนไปแล้วกี่งวด","debts","เพิ่มหนี้รายการแรก")+"</div>";
+
+  const rows=ds.map(d=>{
+    const card=isCard(d.type),pay=duePayment(d),st=paidStats(d);
+    const original=N(d.principal)||N(d.limit)||N(d.balance);
+    const paidCount=st?st.count:0;
+    const totalCount=st&&st.rows.length?st.rows.length:Math.round(N(d.term));
+    const prog=totalCount?Math.min(100,Math.max(0,Math.round(paidCount/totalCount*100))):null;
+    const use=card&&N(d.limit)?Math.round(N(d.balance)/N(d.limit)*100):null;
+    return "<tr><td><b style='font-weight:550'>"+esc(d.name)+"</b><div class='dim'>"+esc(th(d.type||""))+(d.lender?" · "+esc(d.lender):"")+(N(d.dueDay)?" · ครบกำหนดวันที่ "+esc(d.dueDay):"")+"</div>"+
+      (use!==null?'<div class="dim">ใช้วงเงิน '+use+"% จาก "+money(d.limit)+'</div><div class="meter"><i style="width:'+Math.min(use,100)+'%;background:'+(use>60?"var(--neg)":"var(--accent)")+'"></i></div>':"")+
+      (prog!==null?'<div class="dim">ผ่อนไปแล้ว '+paidCount+" / "+totalCount+" งวด · "+prog+'%</div><div class="meter"><i style="width:'+prog+'%"></i></div>':"")+"</td>"+
+      "<td class='r'>"+(original?money(original):"—")+"</td>"+
+      "<td class='r' style='font-size:14.5px'>"+money(d.balance)+"</td>"+
+      "<td class='r'>"+(N(d.rate)?fmt(d.rate,2)+"%":"—")+"<div class='dim'>"+esc(card?"บัตรหมุนเวียน":th(d.method||""))+"</div></td>"+
+      "<td class='r'>"+(pay?money(pay):"—")+"</td>"+
+      "<td class='r'>"+(prog!==null?'<span class="pill">'+paidCount+" / "+totalCount+" งวด</span><div class='dim'>"+prog+"%</div>":"—")+"</td>"+
+      "<td class='r'>"+(!card&&N(d.term)?'<button class="btn ghost sm" data-sched="'+d.id+'">ตารางงวด</button> ':"")+editBtn("debts",d.id)+"</td></tr>";
+  }).join("");
+  const to=ds.reduce((s,d)=>s+(N(d.principal)||N(d.limit)||N(d.balance)),0),tb=ds.reduce((s,d)=>s+N(d.balance),0),tp=ds.reduce((s,d)=>s+duePayment(d),0);
+  h+='<div class="card">'+tbl("<th>รายการ</th><th class='r'>ยอดจัด</th><th class='r'>คงเหลือ</th><th class='r'>ดอกเบี้ย</th><th class='r'>งวดละ</th><th class='r'>ผ่อนไปแล้ว</th><th></th>",rows,
+    "<td>รวม</td><td class='r'>"+money(to)+"</td><td class='r'>"+money(tb)+"</td><td></td><td class='r'>"+money(tp)+"</td><td colspan='2'></td>")+
+    '<p class="hint">แถบเปอร์เซ็นต์คำนวณจากจำนวนงวดที่ผ่อนไปแล้วเทียบกับจำนวนงวดทั้งหมด</p></div>';
+  h+=docsCard("เอกสารหนี้",S.db.docs.filter(x=>["Loan agreement","Hire purchase","Mortgage deed"].includes(x.kind)));
   return h;
 }
 function showSchedule(id){
