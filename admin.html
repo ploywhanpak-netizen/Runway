@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แอดมิน - ระบบขออนุมัติ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: #f4f5f7;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+  }
+  h1 {
+    font-size: 32px;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  p.subtitle {
+    color: #666;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid #eaeaea;
+    margin-bottom: 30px;
+  }
+  .field { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+  select, input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  select:focus, input:focus {
+    outline: none;
+    border-color: #1a1a1a;
+  }
+  .new-dept-row {
+    display: none;
+    margin-top: 8px;
+  }
+  button.submit {
+    width: 100%;
+    padding: 12px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button.submit:hover { background: #333; }
+
+  table {
+    width: 100%;
+    max-width: 700px;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid #eaeaea;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  th {
+    background: #fafafa;
+    color: #666;
+    font-weight: 600;
+  }
+  td.code { font-family: monospace; letter-spacing: 1px; }
+  .empty-row td {
+    text-align: center;
+    color: #aaa;
+    padding: 24px;
+  }
+  button.del {
+    background: none;
+    border: none;
+    color: #c00;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button.del:hover { text-decoration: underline; }
+
+  a.back {
+    color: #1a1a1a;
+    text-decoration: none;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: #fff;
+    margin-top: 30px;
+  }
+  a.back:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+  <h1>🔑 แอดมิน</h1>
+  <p class="subtitle">เพิ่มคนเข้าแผนก และตั้งรหัสแต่ละคน</p>
+
+  <div class="card">
+    <form id="addForm">
+      <div class="field">
+        <label for="dept">แผนก</label>
+        <select id="dept">
+          <option value="Marketing">Marketing</option>
+          <option value="เจ้านาย">เจ้านาย</option>
+          <option value="คนแอปปรูฟ">คนแอปปรูฟ</option>
+          <option value="__new__">+ เพิ่มแผนกใหม่</option>
+        </select>
+        <div class="new-dept-row" id="newDeptRow">
+          <input type="text" id="newDept" placeholder="ชื่อแผนกใหม่">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="name">ชื่อ</label>
+        <input type="text" id="name" placeholder="เช่น นายก. สมชาย">
+      </div>
+
+      <div class="field">
+        <label for="pin">ตั้งรหัส</label>
+        <input type="text" id="pin" placeholder="เช่น 1234">
+      </div>
+
+      <button type="submit" class="submit">เพิ่ม</button>
+    </form>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>แผนก</th>
+        <th>ชื่อ</th>
+        <th>รหัส</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+    </tbody>
+  </table>
+
+  <a class="back" href="index.html">&larr; กลับหน้าหลัก</a>
+
+<script>
+  const STORAGE_KEY = 'wp_admin_people';
+
+  function load() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function save(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function render() {
+    const list = load();
+    const tbody = document.getElementById('rows');
+    tbody.innerHTML = '';
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="4">ยังไม่มีข้อมูล</td></tr>';
+      return;
+    }
+    list.forEach((person, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${person.dept}</td>
+        <td>${person.name}</td>
+        <td class="code">${person.pin}</td>
+        <td><button class="del" data-i="${i}">ลบ</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const list = load();
+        list.splice(Number(btn.dataset.i), 1);
+        save(list);
+        render();
+      });
+    });
+  }
+
+  document.getElementById('dept').addEventListener('change', (e) => {
+    document.getElementById('newDeptRow').style.display =
+      e.target.value === '__new__' ? 'block' : 'none';
+  });
+
+  document.getElementById('addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const deptSelect = document.getElementById('dept');
+    let dept = deptSelect.value;
+    if (dept === '__new__') {
+      dept = document.getElementById('newDept').value.trim();
+    }
+    const name = document.getElementById('name').value.trim();
+    const pin = document.getElementById('pin').value.trim();
+
+    if (!dept || !name || !pin) {
+      alert('กรอกข้อมูลให้ครบทุกช่อง');
+      return;
+    }
+
+    const list = load();
+    list.push({ dept, name, pin });
+    save(list);
+    render();
+    e.target.reset();
+    document.getElementById('newDeptRow').style.display = 'none';
+  });
+
+  render();
+</script>
+
+</body>
+</html>
