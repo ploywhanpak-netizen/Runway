@@ -149,7 +149,7 @@
 
       <div class="field">
         <label for="pin">ตั้งรหัส</label>
-        <input type="text" id="pin" placeholder="เช่น 1234">
+        <input type="password" id="pin" placeholder="เช่น 1234" autocomplete="new-password">
       </div>
 
       <button type="submit" class="submit">เพิ่ม</button>
@@ -173,6 +173,15 @@
 
 <script>
   const STORAGE_KEY = 'wp_admin_people';
+
+  // แฮชรหัสก่อนบันทึก แอดมินจะไม่เห็น/ไม่รู้รหัสจริงของแต่ละคน
+  async function hashPin(pin) {
+    const data = new TextEncoder().encode(pin);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
 
   function load() {
     try {
@@ -199,7 +208,7 @@
       tr.innerHTML = `
         <td>${person.dept}</td>
         <td>${person.name}</td>
-        <td class="code">${person.pin}</td>
+        <td class="code">••••••</td>
         <td><button class="del" data-i="${i}">ลบ</button></td>
       `;
       tbody.appendChild(tr);
@@ -219,7 +228,7 @@
       e.target.value === '__new__' ? 'block' : 'none';
   });
 
-  document.getElementById('addForm').addEventListener('submit', (e) => {
+  document.getElementById('addForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const deptSelect = document.getElementById('dept');
     let dept = deptSelect.value;
@@ -234,8 +243,9 @@
       return;
     }
 
+    const pinHash = await hashPin(pin);
     const list = load();
-    list.push({ dept, name, pin });
+    list.push({ dept, name, pinHash });
     save(list);
     render();
     e.target.reset();
